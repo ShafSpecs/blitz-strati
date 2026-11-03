@@ -177,7 +177,8 @@ mod tests {
     }
 
     /// Focusing a text input enables the IME and places it; a password
-    /// field gets no IME, as in browsers.
+    /// field gets no IME, as in browsers, also when a focused
+    /// field's type changes.
     #[test]
     fn focus_enables_the_ime_except_for_passwords() {
         let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
@@ -203,7 +204,14 @@ mod tests {
         assert_eq!(calls.lock().unwrap()[..], ["enabled(true)", "area"]);
         calls.lock().unwrap().clear();
         doc.set_focus_to(password);
-        let calls = calls.lock().unwrap();
-        assert!(!calls.contains(&"enabled(true)".to_string()), "{calls:?}");
+        assert!(!calls.lock().unwrap().contains(&"enabled(true)".to_string()), "{:?}", calls.lock().unwrap());
+
+        // "Show password": the focused field becomes a text field, and back.
+        calls.lock().unwrap().clear();
+        doc.mutate().set_attribute(password, qual_name!("type"), "text");
+        assert_eq!(calls.lock().unwrap()[..], ["enabled(true)", "area"]);
+        calls.lock().unwrap().clear();
+        doc.mutate().set_attribute(password, qual_name!("type"), "password");
+        assert_eq!(calls.lock().unwrap()[..], ["enabled(false)"]);
     }
 }
