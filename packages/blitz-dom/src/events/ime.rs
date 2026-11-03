@@ -193,7 +193,8 @@ mod tests {
     }
 
     type Log = std::sync::Arc<std::sync::Mutex<Vec<String>>>;
-    struct ShellLog(Log, std::sync::Arc<std::sync::Mutex<Vec<(f32, f32, f32, f32)>>>);
+    type Areas = std::sync::Arc<std::sync::Mutex<Vec<(f32, f32, f32, f32)>>>;
+    struct ShellLog(Log, Areas);
     impl ShellLog {
         fn new(calls: &Log) -> Self {
             ShellLog(calls.clone(), Default::default())
