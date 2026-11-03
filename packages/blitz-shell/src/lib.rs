@@ -115,9 +115,9 @@ impl ShellProvider for BlitzShellProvider {
     }
     fn set_ime_enabled(&self, is_enabled: bool) {
         if is_enabled {
-            let _ = self.window.request_ime_update(ImeRequest::Enable(
-                ImeEnableRequest::new(ImeCapabilities::new(), ImeRequestData::default()).unwrap(),
-            ));
+            let _ = self
+                .window
+                .request_ime_update(ImeRequest::Enable(ime_enable_request()));
         } else {
             let _ = self.window.request_ime_update(ImeRequest::Disable);
         }
@@ -215,5 +215,28 @@ impl ShellProvider for BlitzShellProvider {
             dialog.pick_file().map(|file| vec![file])
         };
         files.unwrap_or_default()
+    }
+}
+
+/// The IME is enabled with the cursor area capability: winit discards cursor
+/// area updates (and so the candidate window stays at the window's origin)
+/// unless it was enabled with it. The area starts empty at the origin; the
+/// document sends the caret's right after.
+fn ime_enable_request() -> ImeEnableRequest {
+    let data = ImeRequestData::default().with_cursor_area(
+        LogicalPosition::new(0.0, 0.0).into(),
+        LogicalSize::new(0.0, 0.0).into(),
+    );
+    ImeEnableRequest::new(ImeCapabilities::new().with_cursor_area(), data)
+        .expect("cursor area capability and data match")
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn ime_is_enabled_with_cursor_area() {
+        let request = super::ime_enable_request();
+        assert!(request.capabilities().cursor_area());
+        assert!(request.request_data().cursor_area.is_some());
     }
 }

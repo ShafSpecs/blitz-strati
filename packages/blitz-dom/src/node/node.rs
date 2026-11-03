@@ -722,12 +722,12 @@ impl Node {
         }
         self.mark_ancestors_dirty();
 
-        // If focussing a text input, enable IME and set IME area
-        if self
-            .element_data()
-            .and_then(|elem| elem.text_input_data())
-            .is_some()
-        {
+        // If focussing a text input, enable IME and set IME area. Password
+        // fields get no IME, as in browsers: composed text would be shown
+        // in the candidate window.
+        if self.element_data().is_some_and(|elem| {
+            elem.text_input_data().is_some() && elem.attr(local_name!("type")) != Some("password")
+        }) {
             shell_provider.set_ime_enabled(true);
             let mut pos = self.absolute_position(0.0, 0.0);
             pos.x += self.final_layout().content_box_x();
