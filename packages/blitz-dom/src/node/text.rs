@@ -1119,4 +1119,32 @@ mod password_tests {
         assert_eq!((d.editor.raw_text(), d.password.as_deref()), ("x", None));
         assert_eq!(d.editor.raw_selection().focus().index(), 1);
     }
+
+    /// A bullet typed or pasted over the bullets is part of the value, even
+    /// when the bullets look unchanged; an edit that changes nothing keeps it.
+    #[test]
+    fn a_typed_bullet_is_part_of_the_password() {
+        let (mut f, mut l) = (FontContext::new(), LayoutContext::new());
+        let mut d = TextInputData::new(false);
+        d.editor.set_scale(1.0);
+        d.set_masked(&mut f, &mut l, true);
+        d.set_text(&mut f, &mut l, "ab");
+
+        let mut driver = d.editor.driver(&mut f, &mut l);
+        driver.select_byte_range(0, 3);
+        driver.insert_or_replace_selection("•");
+        d.unmask_edit(&mut f, &mut l, (2, 0));
+        assert_eq!((d.editor.raw_text(), d.value()), ("••", "•b"));
+
+        let mut driver = d.editor.driver(&mut f, &mut l);
+        driver.select_byte_range(0, 6);
+        driver.insert_or_replace_selection("••");
+        d.unmask_edit(&mut f, &mut l, (2, 0));
+        assert_eq!((d.editor.raw_text(), d.value()), ("••", "••"));
+
+        d.editor.driver(&mut f, &mut l).move_to_byte(0);
+        d.editor.driver(&mut f, &mut l).backdelete();
+        d.unmask_edit(&mut f, &mut l, (2, 0));
+        assert_eq!(d.value(), "••");
+    }
 }
