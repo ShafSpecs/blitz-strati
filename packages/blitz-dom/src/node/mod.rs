@@ -27,4 +27,5 @@ pub use scrollbar::{ScrollbarColor, ScrollbarRef, ScrollbarWidth};
 pub use stylo_data::ComputedStyleRef;
 #[cfg(feature = "svg")]
 pub use svg::{SvgImageData, SvgIntrinsicDimensions};
+pub(crate) use text::masked;
 pub use text::{GeneratedTextInputEvent, PlaceholderLayout, TextBrush, TextInputData, TextLayout};

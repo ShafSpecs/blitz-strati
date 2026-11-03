@@ -271,6 +271,7 @@ impl DocumentMutator<'_> {
     pub fn set_attribute(&mut self, node_id: NodeId, name: QualName, value: &str) {
         let wanted_ime = self.focused_input_wants_ime(node_id);
         self.apply_set_attribute(node_id, name, value);
+        self.follow_password_change(node_id);
         self.follow_ime_change(node_id, wanted_ime);
     }
 
@@ -412,7 +413,20 @@ impl DocumentMutator<'_> {
     pub fn clear_attribute(&mut self, node_id: NodeId, name: QualName) {
         let wanted_ime = self.focused_input_wants_ime(node_id);
         self.apply_clear_attribute(node_id, name);
+        self.follow_password_change(node_id);
         self.follow_ime_change(node_id, wanted_ime);
+    }
+
+    /// A text input masks its text while it's a password field.
+    fn follow_password_change(&mut self, node_id: NodeId) {
+        let doc = &mut *self.doc;
+        let Some(element) = doc.nodes[node_id].element_data_mut() else {
+            return;
+        };
+        let password = element.attr(local_name!("type")).is_some_and(|t| t.eq_ignore_ascii_case("password"));
+        if let Some(input) = element.text_input_data_mut() {
+            input.set_masked(&mut doc.font_ctx.lock().unwrap(), &mut doc.layout_ctx, password);
+        }
     }
 
     /// Whether `node_id` is the focused element and takes IME composition.
