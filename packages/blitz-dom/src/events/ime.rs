@@ -81,10 +81,19 @@ impl BaseDocument {
         // Through transforms on the way up, as a dialog centered with
         // `translate(-50%, -50%)` is.
         let mut pts = [kurbo::Point::new(x, y), kurbo::Point::new(x, y + height)];
-        self.map_to_document(node_id, &mut pts);
-        let scroll = self.viewport_scroll();
+        let scroll = self.ime_scroll(node_id, &mut pts);
         let height = (pts[1].y - pts[0].y).abs();
         self.shell_provider.set_ime_cursor_area((pts[0].x - scroll.x) as f32, (pts[0].y - scroll.y) as f32, 1.0, height as f32);
+    }
+
+    /// Maps the points to the document; returns the viewport scroll to take
+    /// off them (none for a fixed field, which doesn't scroll).
+    fn ime_scroll(&self, node_id: NodeId, pts: &mut [kurbo::Point]) -> crate::Point<f64> {
+        if self.map_to_document(node_id, pts) {
+            crate::Point { x: 0.0, y: 0.0 }
+        } else {
+            self.viewport_scroll()
+        }
     }
 
     /// Places the IME at a text input's content box, before it has a caret.
@@ -94,10 +103,9 @@ impl BaseDocument {
         let (w, h) = (l.content_box_width() as f64, l.content_box_height() as f64);
         // All four corners: a rotation or a flip reverses which is the origin.
         let mut pts = [kurbo::Point::new(x, y), kurbo::Point::new(x + w, y), kurbo::Point::new(x, y + h), kurbo::Point::new(x + w, y + h)];
-        self.map_to_document(node_id, &mut pts);
+        let scroll = self.ime_scroll(node_id, &mut pts);
         let (x0, y0) = pts.iter().fold((f64::INFINITY, f64::INFINITY), |(x, y), p| (x.min(p.x), y.min(p.y)));
         let (x1, y1) = pts.iter().fold((f64::NEG_INFINITY, f64::NEG_INFINITY), |(x, y), p| (x.max(p.x), y.max(p.y)));
-        let scroll = self.viewport_scroll();
         self.shell_provider.set_ime_cursor_area((x0 - scroll.x) as f32, (y0 - scroll.y) as f32, (x1 - x0) as f32, (y1 - y0) as f32);
     }
 }
@@ -350,5 +358,42 @@ mod tests {
         let (x, y, w, h) = areas[0];
         assert!((x - 105.0).abs() < 1.0 && (w - 190.0).abs() < 1.0 && h > 0.0, "{areas:?}");
         assert!(y > 150.0 && (y + h - 195.0).abs() < 1.0, "{areas:?}");
+    }
+
+    /// On a scrolled page, an in-flow field's area moves up with the
+    /// scroll; a fixed one's stays where the field is.
+    #[test]
+    fn the_ime_area_follows_the_viewport_scroll() {
+        let calls = Log::default();
+        let shell = std::sync::Arc::new(ShellLog::new(&calls));
+        let areas = shell.1.clone();
+        let mut doc = BaseDocument::new(DocumentConfig {
+            viewport: Some(Viewport::new(400, 300, 1.0, ColorScheme::Light)),
+            shell_provider: Some(shell),
+            ..Default::default()
+        });
+        let root = doc.root_node().id;
+        let mut m = doc.mutate();
+        let html = m.create_element(qual_name!("html", html), vec![]);
+        let body = m.create_element(qual_name!("body", html), vec![]);
+        let style = |value: &str| vec![Attribute { name: qual_name!("style"), value: value.to_string() }];
+        let field = "display:block;margin:0;border:0;padding:0;width:100px";
+        let spacer = m.create_element(qual_name!("div", html), style("height:400px"));
+        let in_flow = m.create_element(qual_name!("input", html), style(field));
+        let tall = m.create_element(qual_name!("div", html), style("height:2000px"));
+        let fixed = m.create_element(qual_name!("input", html), style(&format!("{field};position:fixed;left:10px;top:100px")));
+        m.append_children(body, &[spacer, in_flow, tall, fixed]);
+        m.append_children(html, &[body]);
+        m.append_children(root, &[html]);
+        drop(m);
+        doc.resolve(0.0);
+        doc.set_viewport_scroll(crate::Point { x: 0.0, y: 200.0 });
+
+        doc.set_focus_to(in_flow);
+        doc.set_focus_to(fixed);
+        let areas = areas.lock().unwrap();
+        let body_top = areas[0].1 + 200.0 - 400.0;
+        assert!((areas[0].1 - (body_top + 200.0)).abs() < 1.0, "{areas:?}");
+        assert!((areas[1].0 - 10.0).abs() < 1.0 && (areas[1].1 - 100.0).abs() < 1.0, "{areas:?}");
     }
 }

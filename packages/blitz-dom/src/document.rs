@@ -2450,11 +2450,16 @@ impl BaseDocument {
     /// Maps points from the node's border box to document coordinates (before
     /// the viewport's scroll): through each containing block's location, scroll
     /// offset and CSS transform on the way up.
-    pub(crate) fn map_to_document(&self, node_id: NodeId, pts: &mut [kurbo::Point]) {
+    /// Returns whether the points are fixed to the viewport (a fixed box
+    /// of the root element), so don't scroll with it.
+    pub(crate) fn map_to_document(&self, node_id: NodeId, pts: &mut [kurbo::Point]) -> bool {
         let scale = self.viewport.scale_f64();
+        let root = self.root_element().id;
+        let mut fixed = false;
         let mut current = Some(node_id);
         while let Some(id) = current {
             let node = &self.nodes[id];
+            fixed |= node.taffy_position() == taffy::Position::Fixed && node.containing_block() == Some(root);
             if let Some(t) = node.transform().as_deref() {
                 // Stored for device pixels (translation scaled): apply in CSS px.
                 let [a, b, c, d, e, f] = t.as_coeffs();
@@ -2471,6 +2476,7 @@ impl BaseDocument {
                 p.y += loc.y as f64 - scroll.y;
             }
         }
+        fixed
     }
 
     /// CSSOM View's `offsetLeft`/`offsetTop`/`offsetWidth`/`offsetHeight` as a single rect:
