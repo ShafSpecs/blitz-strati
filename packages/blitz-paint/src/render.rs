@@ -972,6 +972,24 @@ impl ElementCx<'_, '_> {
                 return;
             }
 
+            // The IME preedit is underlined, as in browsers.
+            if let (Some(range), Some(layout)) = (
+                input_data.editor.raw_compose(),
+                input_data.editor.try_layout(),
+            ) {
+                use parley::layout::Affinity;
+                let color = self.style.get_inherited_text().color.as_srgb_color();
+                let thickness = self.scale.max(1.0);
+                let composed = parley::Selection::new(
+                    parley::Cursor::from_byte_index(layout, range.start, Affinity::Downstream),
+                    parley::Cursor::from_byte_index(layout, range.end, Affinity::Upstream),
+                );
+                for (rect, _line_idx) in composed.geometry(layout) {
+                    let line = kurbo::Rect::new(rect.x0, rect.y1 - thickness, rect.x1, rect.y1);
+                    scene.fill(Fill::NonZero, transform, color, None, &line);
+                }
+            }
+
             // Render text
             let mut draw_text_context = self.context.draw_text_context.borrow_mut();
             crate::text::stroke_text(

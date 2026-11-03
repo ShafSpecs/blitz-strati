@@ -722,15 +722,11 @@ impl Node {
         }
         self.mark_ancestors_dirty();
 
-        // If focussing a text input, enable IME and set IME area. Password
-        // fields get no IME, as in browsers: composed text would be shown
-        // in the candidate window.
+        // If focussing a text input, enable IME (the document places it).
+        // Password fields get no IME, as in browsers: composed text would be
+        // shown in the candidate window.
         if self.wants_ime() {
             shell_provider.set_ime_enabled(true);
-            let pos = self.content_box_origin();
-            let width = self.final_layout().content_box_width();
-            let height = self.final_layout().content_box_height();
-            shell_provider.set_ime_cursor_area(pos.x, pos.y, width, height);
         }
     }
 

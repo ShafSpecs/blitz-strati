@@ -1779,6 +1779,9 @@ impl BaseDocument {
                 }
             },
         );
+        if self.nodes[focus_node_id].wants_ime() {
+            self.set_ime_cursor_area_at_field(focus_node_id);
+        }
 
         self.focus_node_id = Some(focus_node_id);
 
@@ -2416,19 +2419,16 @@ impl BaseDocument {
     /// each transform on the way up (as browsers report it). `None` when
     /// nothing on the way is transformed.
     fn transformed_client_rect(&self, node_id: NodeId) -> Option<BoundingRect> {
-        let mut chain = Vec::new();
         let mut current = Some(node_id);
         let mut any = false;
         while let Some(id) = current {
             let node = &self.nodes[id];
             any |= node.transform().is_some();
-            chain.push(id);
             current = node.containing_block();
         }
         if !any {
             return None;
         }
-        let scale = self.viewport.scale_f64();
         let size = self.nodes[node_id].unrounded_layout().size;
         let mut pts = [
             kurbo::Point::new(0.0, 0.0),
@@ -2436,23 +2436,7 @@ impl BaseDocument {
             kurbo::Point::new(0.0, size.height as f64),
             kurbo::Point::new(size.width as f64, size.height as f64),
         ];
-        for (i, &id) in chain.iter().enumerate() {
-            let node = &self.nodes[id];
-            if let Some(t) = node.transform().as_deref() {
-                // Stored for device pixels (translation scaled): apply in CSS px.
-                let [a, b, c, d, e, f] = t.as_coeffs();
-                let css = kurbo::Affine::new([a, b, c, d, e / scale, f / scale]);
-                for p in &mut pts {
-                    *p = css * *p;
-                }
-            }
-            let loc = node.unrounded_layout().location;
-            let scroll = chain.get(i + 1).map(|&p| *self.nodes[p].scroll_offset()).unwrap_or(crate::util::Point { x: 0.0, y: 0.0 });
-            for p in &mut pts {
-                p.x += loc.x as f64 - scroll.x;
-                p.y += loc.y as f64 - scroll.y;
-            }
-        }
+        self.map_to_document(node_id, &mut pts);
         let (x0, x1) = pts.iter().fold((f64::MAX, f64::MIN), |(lo, hi), p| (lo.min(p.x), hi.max(p.x)));
         let (y0, y1) = pts.iter().fold((f64::MAX, f64::MIN), |(lo, hi), p| (lo.min(p.y), hi.max(p.y)));
         Some(BoundingRect {
@@ -2461,6 +2445,38 @@ impl BaseDocument {
             width: snap_to_layout_unit(x1 - x0),
             height: snap_to_layout_unit(y1 - y0),
         })
+    }
+
+    /// Maps points from the node's border box to document coordinates (before
+    /// the viewport's scroll): through each containing block's location, scroll
+    /// offset and CSS transform on the way up.
+    /// Returns whether the points are fixed to the viewport (a fixed box
+    /// of the root element), so don't scroll with it.
+    pub(crate) fn map_to_document(&self, node_id: NodeId, pts: &mut [kurbo::Point]) -> bool {
+        let scale = self.viewport.scale_f64();
+        let root = self.root_element().id;
+        let mut fixed = false;
+        let mut current = Some(node_id);
+        while let Some(id) = current {
+            let node = &self.nodes[id];
+            fixed |= node.taffy_position() == taffy::Position::Fixed && node.containing_block() == Some(root);
+            if let Some(t) = node.transform().as_deref() {
+                // Stored for device pixels (translation scaled): apply in CSS px.
+                let [a, b, c, d, e, f] = t.as_coeffs();
+                let css = kurbo::Affine::new([a, b, c, d, e / scale, f / scale]);
+                for p in pts.iter_mut() {
+                    *p = css * *p;
+                }
+            }
+            let loc = node.unrounded_layout().location;
+            current = node.containing_block();
+            let scroll = current.map(|p| *self.nodes[p].scroll_offset()).unwrap_or(crate::util::Point { x: 0.0, y: 0.0 });
+            for p in pts.iter_mut() {
+                p.x += loc.x as f64 - scroll.x;
+                p.y += loc.y as f64 - scroll.y;
+            }
+        }
+        fixed
     }
 
     /// CSSOM View's `offsetLeft`/`offsetTop`/`offsetWidth`/`offsetHeight` as a single rect:
