@@ -165,9 +165,7 @@ impl ShellProvider for BlitzShellProvider {
         )
     ))]
     fn get_clipboard_text(&self) -> Result<String, blitz_traits::shell::ClipboardError> {
-        let mut cb = arboard::Clipboard::new().unwrap();
-        cb.get_text()
-            .map_err(|_| blitz_traits::shell::ClipboardError)
+        with_clipboard(|cb| cb.get_text())
     }
 
     #[cfg(all(
@@ -183,9 +181,7 @@ impl ShellProvider for BlitzShellProvider {
         )
     ))]
     fn set_clipboard_text(&self, text: String) -> Result<(), blitz_traits::shell::ClipboardError> {
-        let mut cb = arboard::Clipboard::new().unwrap();
-        cb.set_text(text.to_owned())
-            .map_err(|_| blitz_traits::shell::ClipboardError)
+        with_clipboard(|cb| cb.set_text(text))
     }
 
     #[cfg(all(
@@ -239,4 +235,31 @@ mod tests {
         assert!(request.capabilities().cursor_area());
         assert!(request.request_data().cursor_area.is_some());
     }
+}
+
+/// The system clipboard, kept for the life of the process: on X11 and
+/// Wayland the copying app serves the clipboard's contents, and arboard
+/// stops serving them when its last `Clipboard` is dropped, so a
+/// `Clipboard` per copy lost the text as soon as it was copied.
+#[cfg(all(
+    feature = "clipboard",
+    any(
+        target_os = "windows",
+        target_os = "macos",
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    )
+))]
+fn with_clipboard<T>(
+    f: impl FnOnce(&mut arboard::Clipboard) -> Result<T, arboard::Error>,
+) -> Result<T, blitz_traits::shell::ClipboardError> {
+    static CLIPBOARD: std::sync::Mutex<Option<arboard::Clipboard>> = std::sync::Mutex::new(None);
+    let mut cb = CLIPBOARD.lock().unwrap_or_else(|e| e.into_inner());
+    if cb.is_none() {
+        *cb = Some(arboard::Clipboard::new().map_err(|_| blitz_traits::shell::ClipboardError)?);
+    }
+    f(cb.as_mut().unwrap()).map_err(|_| blitz_traits::shell::ClipboardError)
 }
