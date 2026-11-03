@@ -73,8 +73,7 @@ impl BaseDocument {
         };
         // Parley's geometry is at the editor's scale (device pixels).
         let scale = layout.scale() as f64;
-        let l = node.final_layout();
-        let origin = node.absolute_position(l.content_box_x(), l.content_box_y());
+        let origin = node.content_box_origin();
         let scroll = self.viewport_scroll();
         let (dx, dy) = if input.is_multiline { (0.0, input.scroll_offset) } else { (input.scroll_offset, 0.0) };
         let x = origin.x as f64 + caret.x0 / scale - dx as f64 - scroll.x;
@@ -166,13 +165,20 @@ mod tests {
         );
     }
 
-    struct ShellLog(std::sync::Arc<std::sync::Mutex<Vec<String>>>);
+    type Log = std::sync::Arc<std::sync::Mutex<Vec<String>>>;
+    struct ShellLog(Log, std::sync::Arc<std::sync::Mutex<Vec<(f32, f32)>>>);
+    impl ShellLog {
+        fn new(calls: &Log) -> Self {
+            ShellLog(calls.clone(), Default::default())
+        }
+    }
     impl blitz_traits::shell::ShellProvider for ShellLog {
         fn set_ime_enabled(&self, is_enabled: bool) {
             self.0.lock().unwrap().push(format!("enabled({is_enabled})"));
         }
-        fn set_ime_cursor_area(&self, _: f32, _: f32, _: f32, _: f32) {
+        fn set_ime_cursor_area(&self, x: f32, y: f32, _: f32, _: f32) {
             self.0.lock().unwrap().push("area".into());
+            self.1.lock().unwrap().push((x, y));
         }
     }
 
@@ -184,7 +190,7 @@ mod tests {
         let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
         let mut doc = BaseDocument::new(DocumentConfig {
             viewport: Some(Viewport::new(400, 300, 1.0, ColorScheme::Light)),
-            shell_provider: Some(std::sync::Arc::new(ShellLog(calls.clone()))),
+            shell_provider: Some(std::sync::Arc::new(ShellLog::new(&calls))),
             ..Default::default()
         });
         let root = doc.root_node().id;
@@ -213,5 +219,41 @@ mod tests {
         calls.lock().unwrap().clear();
         doc.mutate().set_attribute(password, qual_name!("type"), "password");
         assert_eq!(calls.lock().unwrap()[..], ["enabled(false)"]);
+    }
+
+    /// The IME is placed at the field's content box and caret, in document
+    /// coordinates: x = body margin 8 + input margin 50 + border 2 + padding 3;
+    /// y = the input's 20px top margin (collapsed with the body's 8) + 2 + 3.
+    #[test]
+    fn the_ime_is_placed_at_the_caret() {
+        let calls = Log::default();
+        let shell = std::sync::Arc::new(ShellLog::new(&calls));
+        let areas = shell.1.clone();
+        let mut doc = BaseDocument::new(DocumentConfig {
+            viewport: Some(Viewport::new(400, 300, 1.0, ColorScheme::Light)),
+            shell_provider: Some(shell),
+            ..Default::default()
+        });
+        let root = doc.root_node().id;
+        let mut m = doc.mutate();
+        let html = m.create_element(qual_name!("html", html), vec![]);
+        let body = m.create_element(qual_name!("body", html), vec![]);
+        let style = "display:block;margin:20px 0 0 50px;border:2px solid;padding:3px";
+        let input = m.create_element(
+            qual_name!("input", html),
+            vec![Attribute { name: qual_name!("style"), value: style.to_string() }],
+        );
+        m.append_children(body, &[input]);
+        m.append_children(html, &[body]);
+        m.append_children(root, &[html]);
+        drop(m);
+        doc.resolve(0.0);
+
+        doc.set_focus_to(input);
+        let areas = areas.lock().unwrap();
+        assert!(!areas.is_empty(), "{:?}", calls.lock().unwrap());
+        for &(x, y) in areas.iter() {
+            assert!((x - 63.0).abs() < 1.0 && (y - 25.0).abs() < 1.0, "{areas:?}");
+        }
     }
 }

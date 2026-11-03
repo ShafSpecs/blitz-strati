@@ -727,9 +727,7 @@ impl Node {
         // in the candidate window.
         if self.wants_ime() {
             shell_provider.set_ime_enabled(true);
-            let mut pos = self.absolute_position(0.0, 0.0);
-            pos.x += self.final_layout().content_box_x();
-            pos.y += self.final_layout().content_box_y();
+            let pos = self.content_box_origin();
             let width = self.final_layout().content_box_width();
             let height = self.final_layout().content_box_height();
             shell_provider.set_ime_cursor_area(pos.x, pos.y, width, height);
@@ -1657,6 +1655,14 @@ impl Node {
         self.oof_containing_block
             .get()
             .or_else(|| self.layout_parent.get())
+    }
+
+    /// The document-relative position of the `Node`'s content box. (Taffy's
+    /// `content_box_x/y` include the node's location, so they can't be added
+    /// to `absolute_position`.)
+    pub fn content_box_origin(&self) -> crate::util::Point<f32> {
+        let l = self.final_layout();
+        self.absolute_position(l.border.left + l.padding.left, l.border.top + l.padding.top)
     }
 
     /// Computes the Document-relative coordinates of the `Node`
