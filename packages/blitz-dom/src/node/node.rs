@@ -722,12 +722,10 @@ impl Node {
         }
         self.mark_ancestors_dirty();
 
-        // If focussing a text input, enable IME and set IME area
-        if self
-            .element_data()
-            .and_then(|elem| elem.text_input_data())
-            .is_some()
-        {
+        // If focussing a text input, enable IME and set IME area. Password
+        // fields get no IME, as in browsers: composed text would be shown
+        // in the candidate window.
+        if self.wants_ime() {
             shell_provider.set_ime_enabled(true);
             let mut pos = self.absolute_position(0.0, 0.0);
             pos.x += self.final_layout().content_box_x();
@@ -736,6 +734,17 @@ impl Node {
             let height = self.final_layout().content_box_height();
             shell_provider.set_ime_cursor_area(pos.x, pos.y, width, height);
         }
+    }
+
+    /// A text input that takes IME composition: any but a password field,
+    /// whose composed text the candidate window would show.
+    pub fn wants_ime(&self) -> bool {
+        self.element_data().is_some_and(|elem| {
+            elem.text_input_data().is_some()
+                && !elem
+                    .attr(local_name!("type"))
+                    .is_some_and(|t| t.eq_ignore_ascii_case("password"))
+        })
     }
 
     pub fn blur(&mut self, shell_provider: Arc<dyn ShellProvider>) {

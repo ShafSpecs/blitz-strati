@@ -165,4 +165,53 @@ mod tests {
             ]
         );
     }
+
+    struct ShellLog(std::sync::Arc<std::sync::Mutex<Vec<String>>>);
+    impl blitz_traits::shell::ShellProvider for ShellLog {
+        fn set_ime_enabled(&self, is_enabled: bool) {
+            self.0.lock().unwrap().push(format!("enabled({is_enabled})"));
+        }
+        fn set_ime_cursor_area(&self, _: f32, _: f32, _: f32, _: f32) {
+            self.0.lock().unwrap().push("area".into());
+        }
+    }
+
+    /// Focusing a text input enables the IME and places it; a password
+    /// field gets no IME, as in browsers, also when a focused
+    /// field's type changes.
+    #[test]
+    fn focus_enables_the_ime_except_for_passwords() {
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut doc = BaseDocument::new(DocumentConfig {
+            viewport: Some(Viewport::new(400, 300, 1.0, ColorScheme::Light)),
+            shell_provider: Some(std::sync::Arc::new(ShellLog(calls.clone()))),
+            ..Default::default()
+        });
+        let root = doc.root_node().id;
+        let mut m = doc.mutate();
+        let html = m.create_element(qual_name!("html", html), vec![]);
+        let body = m.create_element(qual_name!("body", html), vec![]);
+        let attr = |name: QualName, value: &str| Attribute { name, value: value.to_string() };
+        let text = m.create_element(qual_name!("input", html), vec![attr(qual_name!("type"), "text")]);
+        let password = m.create_element(qual_name!("input", html), vec![attr(qual_name!("type"), "password")]);
+        m.append_children(body, &[text, password]);
+        m.append_children(html, &[body]);
+        m.append_children(root, &[html]);
+        drop(m);
+        doc.resolve(0.0);
+
+        doc.set_focus_to(text);
+        assert_eq!(calls.lock().unwrap()[..], ["enabled(true)", "area"]);
+        calls.lock().unwrap().clear();
+        doc.set_focus_to(password);
+        assert!(!calls.lock().unwrap().contains(&"enabled(true)".to_string()), "{:?}", calls.lock().unwrap());
+
+        // "Show password": the focused field becomes a text field, and back.
+        calls.lock().unwrap().clear();
+        doc.mutate().set_attribute(password, qual_name!("type"), "text");
+        assert_eq!(calls.lock().unwrap()[..], ["enabled(true)", "area"]);
+        calls.lock().unwrap().clear();
+        doc.mutate().set_attribute(password, qual_name!("type"), "password");
+        assert_eq!(calls.lock().unwrap()[..], ["enabled(false)"]);
+    }
 }

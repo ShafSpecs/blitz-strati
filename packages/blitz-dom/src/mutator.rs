@@ -269,6 +269,12 @@ impl DocumentMutator<'_> {
     }
 
     pub fn set_attribute(&mut self, node_id: NodeId, name: QualName, value: &str) {
+        let wanted_ime = self.focused_input_wants_ime(node_id);
+        self.apply_set_attribute(node_id, name, value);
+        self.follow_ime_change(node_id, wanted_ime);
+    }
+
+    fn apply_set_attribute(&mut self, node_id: NodeId, name: QualName, value: &str) {
         self.note_select(node_id);
         let node_is_in_document = self.doc.nodes[node_id].flags.is_in_document();
         if node_is_in_document {
@@ -404,6 +410,32 @@ impl DocumentMutator<'_> {
     }
 
     pub fn clear_attribute(&mut self, node_id: NodeId, name: QualName) {
+        let wanted_ime = self.focused_input_wants_ime(node_id);
+        self.apply_clear_attribute(node_id, name);
+        self.follow_ime_change(node_id, wanted_ime);
+    }
+
+    /// Whether `node_id` is the focused element and takes IME composition.
+    fn focused_input_wants_ime(&self, node_id: NodeId) -> bool {
+        self.doc.focus_node_id == Some(node_id) && self.doc.nodes[node_id].wants_ime()
+    }
+
+    /// The focused input's `type` changing to or from `password` (a "show
+    /// password" toggle) turns the IME on or off without a focus change.
+    fn follow_ime_change(&mut self, node_id: NodeId, wanted_ime: bool) {
+        if self.doc.focus_node_id != Some(node_id) {
+            return;
+        }
+        let wants_ime = self.doc.nodes[node_id].wants_ime();
+        if wants_ime && !wanted_ime {
+            self.doc.shell_provider.set_ime_enabled(true);
+            self.doc.set_ime_cursor_area_at_caret(node_id);
+        } else if wanted_ime && !wants_ime {
+            self.doc.shell_provider.set_ime_enabled(false);
+        }
+    }
+
+    fn apply_clear_attribute(&mut self, node_id: NodeId, name: QualName) {
         self.note_select(node_id);
         let node_is_in_document = self.doc.nodes[node_id].flags.is_in_document();
         if node_is_in_document {
