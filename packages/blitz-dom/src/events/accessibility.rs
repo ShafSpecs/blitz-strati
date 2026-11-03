@@ -144,7 +144,7 @@ impl<Handler: EventHandler> EventDriver<'_, Handler> {
             return false;
         };
         if input.replace_all(&mut doc.font_ctx.lock().unwrap(), &mut doc.layout_ctx, text) {
-            let value = input.editor.raw_text().to_string();
+            let value = input.value().to_string();
             doc.shell_provider.request_redraw();
             self.queue
                 .push_back(DomEvent::new(target, DomEventData::Input(BlitzInputEvent { value })));

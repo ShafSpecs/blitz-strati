@@ -3,6 +3,7 @@ use blitz_traits::{
     node_id::NodeId,
     shell::ShellProvider,
 };
+use unicode_segmentation::UnicodeSegmentation;
 use keyboard_types::{Key, Modifiers, NamedKey};
 use parley::{ContentWidths, FontContext, LayoutContext};
 
@@ -80,6 +81,16 @@ pub struct TextInputData {
     /// An IME composition is in progress (between `compositionstart` and
     /// `compositionend`).
     pub composing: bool,
+    /// A password field's value. The editor then holds a bullet per grapheme,
+    /// so layout, caret, selection and hit testing never see the value.
+    pub password: Option<String>,
+}
+
+const MASK: char = '•';
+
+/// A bullet per grapheme of `text`.
+pub(crate) fn masked(text: &str) -> String {
+    MASK.to_string().repeat(text.graphemes(true).count())
 }
 
 /// A text input's undo history: the text and selection before each group of
@@ -160,7 +171,71 @@ impl TextInputData {
             placeholder: None,
             history: EditHistory::default(),
             composing: false,
+            password: None,
         }
+    }
+
+    /// The field's value (a password field's, not its bullets).
+    pub fn value(&self) -> &str {
+        self.password.as_deref().unwrap_or(self.editor.raw_text())
+    }
+
+    /// Masks the text (the field became a password field) or shows it,
+    /// keeping the caret.
+    pub fn set_masked(&mut self, font_ctx: &mut FontContext, layout_ctx: &mut LayoutContext<TextBrush>, masked: bool) {
+        if masked == self.password.is_some() {
+            return;
+        }
+        let caret = self.editor.raw_selection().focus().index();
+        self.history.clear();
+        if masked {
+            let text = self.editor.raw_text().to_owned();
+            let at = text[..caret.min(text.len())].graphemes(true).count();
+            self.password = Some(text);
+            self.remask(font_ctx, layout_ctx, at);
+        } else {
+            let text = self.password.take().unwrap_or_default();
+            let at = text.grapheme_indices(true).nth(caret / MASK.len_utf8()).map_or(text.len(), |(i, _)| i);
+            self.editor.set_text(&text);
+            let mut driver = self.editor.driver(font_ctx, layout_ctx);
+            driver.refresh_layout();
+            driver.move_to_byte(at);
+        }
+    }
+
+    /// Shows a bullet per grapheme of the password, the caret after `caret`
+    /// graphemes.
+    fn remask(&mut self, font_ctx: &mut FontContext, layout_ctx: &mut LayoutContext<TextBrush>, caret: usize) {
+        let bullets = masked(self.password.as_deref().unwrap_or_default());
+        let n = bullets.chars().count();
+        self.editor.set_text(&bullets);
+        let mut driver = self.editor.driver(font_ctx, layout_ctx);
+        driver.refresh_layout();
+        driver.move_to_byte(caret.min(n) * MASK.len_utf8());
+    }
+
+    /// Applies an edit of a password field's bullets to its value: `before`
+    /// is the bullet count and the selection's start before it. An edit
+    /// replaces bullets from where it starts and leaves the caret after what
+    /// it inserted, so the removed graphemes and the inserted text follow.
+    fn unmask_edit(&mut self, font_ctx: &mut FontContext, layout_ctx: &mut LayoutContext<TextBrush>, before: (usize, usize)) {
+        let Some(value) = self.password.as_mut() else {
+            return;
+        };
+        let (len, start) = before;
+        let text = self.editor.raw_text();
+        let focus = self.editor.raw_selection().focus().index().min(text.len());
+        let chars: Vec<char> = text.chars().collect();
+        let caret = text[..focus].chars().count();
+        let at = start.min(caret);
+        let inserted: String = chars[at..caret].iter().collect();
+        let removed = (len + inserted.chars().count()).saturating_sub(chars.len());
+        let graphemes: Vec<&str> = value.graphemes(true).collect();
+        let head = graphemes[..at.min(graphemes.len())].concat() + &inserted;
+        let tail = graphemes[(at + removed).min(graphemes.len())..].concat();
+        let caret = head.graphemes(true).count();
+        *value = head + &tail;
+        self.remask(font_ctx, layout_ctx, caret);
     }
 
     pub fn set_text(
@@ -169,6 +244,14 @@ impl TextInputData {
         layout_ctx: &mut LayoutContext<TextBrush>,
         text: &str,
     ) {
+        if self.password.is_some() {
+            if self.password.as_deref() != Some(text) {
+                self.password = Some(text.to_owned());
+                self.remask(font_ctx, layout_ctx, usize::MAX);
+                self.history.clear();
+            }
+            return;
+        }
         // While composing, the page has seen the text with the preedit in it
         // (input events carry it): setting that same text changes nothing,
         // and leaves the composition alone.
@@ -193,6 +276,14 @@ impl TextInputData {
         layout_ctx: &mut LayoutContext<TextBrush>,
         text: &str,
     ) -> bool {
+        if self.password.is_some() {
+            if self.password.as_deref() == Some(text) {
+                return false;
+            }
+            self.password = Some(text.to_owned());
+            self.remask(font_ctx, layout_ctx, usize::MAX);
+            return true;
+        }
         if self.editor.raw_text() == text {
             return false;
         }
@@ -316,6 +407,25 @@ impl TextInputData {
         let action_mod = mods.contains(ACTION_MOD);
 
         let is_multiline = self.is_multiline;
+
+        if self.password.is_some() {
+            // As in browsers, a password can't be copied, cut or undone.
+            if let Key::Character(c) = &event.key
+                && action_mod
+                && matches!(c.to_lowercase().as_str(), "c" | "x" | "z" | "y")
+            {
+                return None;
+            }
+            let before = (
+                self.editor.raw_text().chars().count(),
+                self.editor.raw_selection().text_range().start / MASK.len_utf8(),
+            );
+            let generated = self.apply_editing_key(font_ctx, layout_ctx, shell_provider, event, is_multiline);
+            if matches!(generated, Some(GeneratedTextInputEvent::Input)) {
+                self.unmask_edit(font_ctx, layout_ctx, before);
+            }
+            return generated;
+        }
 
         // Undo and redo
         if let Key::Character(c) = &event.key
@@ -919,6 +1029,10 @@ impl TextInputData {
         layout_ctx: &mut LayoutContext<TextBrush>,
         event: BlitzImeEvent,
     ) -> Option<GeneratedTextInputEvent> {
+        // A password field gets no IME (see `Node::wants_ime`).
+        if self.password.is_some() {
+            return None;
+        }
         let editor = &mut self.editor;
         let mut driver = editor.driver(font_ctx, layout_ctx);
 
@@ -962,5 +1076,75 @@ impl TextInputData {
                 None
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod password_tests {
+    use super::*;
+
+    /// A password shows a bullet per grapheme; edits of the bullets edit the
+    /// value; showing it again keeps the caret.
+    #[test]
+    fn a_password_is_masked_and_edited() {
+        let (mut f, mut l) = (FontContext::new(), LayoutContext::new());
+        let mut d = TextInputData::new(false);
+        d.editor.set_scale(1.0);
+        d.set_text(&mut f, &mut l, "ab");
+        d.set_masked(&mut f, &mut l, true);
+        assert_eq!((d.editor.raw_text(), d.value()), ("••", "ab"));
+        d.set_text(&mut f, &mut l, "a👍🏽b");
+        assert_eq!(d.editor.raw_text(), "•••");
+
+        d.editor.driver(&mut f, &mut l).backdelete();
+        d.unmask_edit(&mut f, &mut l, (3, 3));
+        assert_eq!(d.value(), "a👍🏽");
+        d.editor.driver(&mut f, &mut l).backdelete();
+        d.unmask_edit(&mut f, &mut l, (2, 2));
+        assert_eq!(d.value(), "a", "the whole emoji goes");
+
+        let mut driver = d.editor.driver(&mut f, &mut l);
+        driver.move_to_byte(0);
+        driver.insert_or_replace_selection("xy");
+        d.unmask_edit(&mut f, &mut l, (1, 0));
+        assert_eq!((d.editor.raw_text(), d.value()), ("•••", "xya"));
+
+        let mut driver = d.editor.driver(&mut f, &mut l);
+        driver.select_byte_range(3, 9);
+        driver.delete_selection();
+        d.unmask_edit(&mut f, &mut l, (3, 1));
+        assert_eq!(d.value(), "x");
+
+        d.set_masked(&mut f, &mut l, false);
+        assert_eq!((d.editor.raw_text(), d.password.as_deref()), ("x", None));
+        assert_eq!(d.editor.raw_selection().focus().index(), 1);
+    }
+
+    /// A bullet typed or pasted over the bullets is part of the value, even
+    /// when the bullets look unchanged; an edit that changes nothing keeps it.
+    #[test]
+    fn a_typed_bullet_is_part_of_the_password() {
+        let (mut f, mut l) = (FontContext::new(), LayoutContext::new());
+        let mut d = TextInputData::new(false);
+        d.editor.set_scale(1.0);
+        d.set_masked(&mut f, &mut l, true);
+        d.set_text(&mut f, &mut l, "ab");
+
+        let mut driver = d.editor.driver(&mut f, &mut l);
+        driver.select_byte_range(0, 3);
+        driver.insert_or_replace_selection("•");
+        d.unmask_edit(&mut f, &mut l, (2, 0));
+        assert_eq!((d.editor.raw_text(), d.value()), ("••", "•b"));
+
+        let mut driver = d.editor.driver(&mut f, &mut l);
+        driver.select_byte_range(0, 6);
+        driver.insert_or_replace_selection("••");
+        d.unmask_edit(&mut f, &mut l, (2, 0));
+        assert_eq!((d.editor.raw_text(), d.value()), ("••", "••"));
+
+        d.editor.driver(&mut f, &mut l).move_to_byte(0);
+        d.editor.driver(&mut f, &mut l).backdelete();
+        d.unmask_edit(&mut f, &mut l, (2, 0));
+        assert_eq!(d.value(), "••");
     }
 }
