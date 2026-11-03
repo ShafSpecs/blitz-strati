@@ -91,10 +91,14 @@ impl BaseDocument {
     pub(crate) fn set_ime_cursor_area_at_field(&mut self, node_id: NodeId) {
         let l = *self.nodes[node_id].final_layout();
         let (x, y) = ((l.border.left + l.padding.left) as f64, (l.border.top + l.padding.top) as f64);
-        let mut pts = [kurbo::Point::new(x, y), kurbo::Point::new(x + l.content_box_width() as f64, y + l.content_box_height() as f64)];
+        let (w, h) = (l.content_box_width() as f64, l.content_box_height() as f64);
+        // All four corners: a rotation or a flip reverses which is the origin.
+        let mut pts = [kurbo::Point::new(x, y), kurbo::Point::new(x + w, y), kurbo::Point::new(x, y + h), kurbo::Point::new(x + w, y + h)];
         self.map_to_document(node_id, &mut pts);
-        let (w, h) = ((pts[1].x - pts[0].x).abs(), (pts[1].y - pts[0].y).abs());
-        self.shell_provider.set_ime_cursor_area(pts[0].x as f32, pts[0].y as f32, w as f32, h as f32);
+        let (x0, y0) = pts.iter().fold((f64::INFINITY, f64::INFINITY), |(x, y), p| (x.min(p.x), y.min(p.y)));
+        let (x1, y1) = pts.iter().fold((f64::NEG_INFINITY, f64::NEG_INFINITY), |(x, y), p| (x.max(p.x), y.max(p.y)));
+        let scroll = self.viewport_scroll();
+        self.shell_provider.set_ime_cursor_area((x0 - scroll.x) as f32, (y0 - scroll.y) as f32, (x1 - x0) as f32, (y1 - y0) as f32);
     }
 }
 
@@ -181,7 +185,7 @@ mod tests {
     }
 
     type Log = std::sync::Arc<std::sync::Mutex<Vec<String>>>;
-    struct ShellLog(Log, std::sync::Arc<std::sync::Mutex<Vec<(f32, f32)>>>);
+    struct ShellLog(Log, std::sync::Arc<std::sync::Mutex<Vec<(f32, f32, f32, f32)>>>);
     impl ShellLog {
         fn new(calls: &Log) -> Self {
             ShellLog(calls.clone(), Default::default())
@@ -191,9 +195,9 @@ mod tests {
         fn set_ime_enabled(&self, is_enabled: bool) {
             self.0.lock().unwrap().push(format!("enabled({is_enabled})"));
         }
-        fn set_ime_cursor_area(&self, x: f32, y: f32, _: f32, _: f32) {
+        fn set_ime_cursor_area(&self, x: f32, y: f32, w: f32, h: f32) {
             self.0.lock().unwrap().push("area".into());
-            self.1.lock().unwrap().push((x, y));
+            self.1.lock().unwrap().push((x, y, w, h));
         }
     }
 
@@ -267,7 +271,7 @@ mod tests {
         doc.set_focus_to(input);
         let areas = areas.lock().unwrap();
         assert!(!areas.is_empty(), "{:?}", calls.lock().unwrap());
-        for &(x, y) in areas.iter() {
+        for &(x, y, ..) in areas.iter() {
             assert!((x - 63.0).abs() < 1.0 && (y - 25.0).abs() < 1.0, "{areas:?}");
         }
     }
@@ -308,7 +312,43 @@ mod tests {
         assert!(areas.len() >= 2, "{:?}", calls.lock().unwrap());
         // At the field, then at the caret after "k" (untransformed: (205, 155)).
         assert!((areas[0].0 - 105.0).abs() < 1.0 && (areas[0].1 - 105.0).abs() < 1.0, "{areas:?}");
-        let (x, y) = *areas.last().unwrap();
+        let (x, y, ..) = *areas.last().unwrap();
         assert!(x > 106.0 && x < 125.0 && (y - 105.0).abs() < 1.0, "{areas:?}");
+    }
+
+    /// A rotation reverses the field's corners; the area still covers it.
+    #[test]
+    fn the_ime_covers_a_rotated_field() {
+        let calls = Log::default();
+        let shell = std::sync::Arc::new(ShellLog::new(&calls));
+        let areas = shell.1.clone();
+        let mut doc = BaseDocument::new(DocumentConfig {
+            viewport: Some(Viewport::new(400, 300, 1.0, ColorScheme::Light)),
+            shell_provider: Some(shell),
+            ..Default::default()
+        });
+        let root = doc.root_node().id;
+        let mut m = doc.mutate();
+        let html = m.create_element(qual_name!("html", html), vec![]);
+        let body = m.create_element(qual_name!("body", html), vec![]);
+        let style = |value: &str| vec![Attribute { name: qual_name!("style"), value: value.to_string() }];
+        let dialog = m.create_element(
+            qual_name!("div", html),
+            style("position:fixed;left:100px;top:100px;width:200px;height:100px;transform:rotate(180deg)"),
+        );
+        let input = m.create_element(qual_name!("input", html), style("display:block;margin:0;border:2px solid;padding:3px"));
+        m.append_children(dialog, &[input]);
+        m.append_children(body, &[dialog]);
+        m.append_children(html, &[body]);
+        m.append_children(root, &[html]);
+        drop(m);
+        doc.resolve(0.0);
+
+        doc.set_focus_to(input);
+        let areas = areas.lock().unwrap();
+        // The field is now at the dialog's bottom, content box 190 wide.
+        let (x, y, w, h) = areas[0];
+        assert!((x - 105.0).abs() < 1.0 && (w - 190.0).abs() < 1.0 && h > 0.0, "{areas:?}");
+        assert!(y > 150.0 && (y + h - 195.0).abs() < 1.0, "{areas:?}");
     }
 }
