@@ -73,13 +73,28 @@ impl BaseDocument {
         };
         // Parley's geometry is at the editor's scale (device pixels).
         let scale = layout.scale() as f64;
-        let origin = node.content_box_origin();
-        let scroll = self.viewport_scroll();
+        let l = node.final_layout();
         let (dx, dy) = if input.is_multiline { (0.0, input.scroll_offset) } else { (input.scroll_offset, 0.0) };
-        let x = origin.x as f64 + caret.x0 / scale - dx as f64 - scroll.x;
-        let y = origin.y as f64 + caret.y0 / scale - dy as f64 - scroll.y;
+        let x = (l.border.left + l.padding.left) as f64 + caret.x0 / scale - dx as f64;
+        let y = (l.border.top + l.padding.top) as f64 + caret.y0 / scale - dy as f64;
         let height = (caret.y1 - caret.y0) / scale;
-        self.shell_provider.set_ime_cursor_area(x as f32, y as f32, 1.0, height as f32);
+        // Through transforms on the way up, as a dialog centered with
+        // `translate(-50%, -50%)` is.
+        let mut pts = [kurbo::Point::new(x, y), kurbo::Point::new(x, y + height)];
+        self.map_to_document(node_id, &mut pts);
+        let scroll = self.viewport_scroll();
+        let height = (pts[1].y - pts[0].y).abs();
+        self.shell_provider.set_ime_cursor_area((pts[0].x - scroll.x) as f32, (pts[0].y - scroll.y) as f32, 1.0, height as f32);
+    }
+
+    /// Places the IME at a text input's content box, before it has a caret.
+    pub(crate) fn set_ime_cursor_area_at_field(&mut self, node_id: NodeId) {
+        let l = *self.nodes[node_id].final_layout();
+        let (x, y) = ((l.border.left + l.padding.left) as f64, (l.border.top + l.padding.top) as f64);
+        let mut pts = [kurbo::Point::new(x, y), kurbo::Point::new(x + l.content_box_width() as f64, y + l.content_box_height() as f64)];
+        self.map_to_document(node_id, &mut pts);
+        let (w, h) = ((pts[1].x - pts[0].x).abs(), (pts[1].y - pts[0].y).abs());
+        self.shell_provider.set_ime_cursor_area(pts[0].x as f32, pts[0].y as f32, w as f32, h as f32);
     }
 }
 
@@ -255,5 +270,45 @@ mod tests {
         for &(x, y) in areas.iter() {
             assert!((x - 63.0).abs() < 1.0 && (y - 25.0).abs() < 1.0, "{areas:?}");
         }
+    }
+
+    /// In a dialog centered with `translate(-50%, -50%)`, the IME follows the
+    /// transform: the 200x100 box at (200, 150) is drawn at (100, 100), so its
+    /// input's content box is at x = 100 + 2 + 3, y = 100 + 2 + 3.
+    #[test]
+    fn the_ime_follows_a_transformed_dialog() {
+        let calls = Log::default();
+        let shell = std::sync::Arc::new(ShellLog::new(&calls));
+        let areas = shell.1.clone();
+        let mut doc = BaseDocument::new(DocumentConfig {
+            viewport: Some(Viewport::new(400, 300, 1.0, ColorScheme::Light)),
+            shell_provider: Some(shell),
+            ..Default::default()
+        });
+        let root = doc.root_node().id;
+        let mut m = doc.mutate();
+        let html = m.create_element(qual_name!("html", html), vec![]);
+        let body = m.create_element(qual_name!("body", html), vec![]);
+        let style = |value: &str| vec![Attribute { name: qual_name!("style"), value: value.to_string() }];
+        let dialog = m.create_element(
+            qual_name!("div", html),
+            style("position:fixed;left:200px;top:150px;width:200px;height:100px;transform:translate(-50%,-50%)"),
+        );
+        let input = m.create_element(qual_name!("input", html), style("display:block;margin:0;border:2px solid;padding:3px"));
+        m.append_children(dialog, &[input]);
+        m.append_children(body, &[dialog]);
+        m.append_children(html, &[body]);
+        m.append_children(root, &[html]);
+        drop(m);
+        doc.resolve(0.0);
+
+        doc.set_focus_to(input);
+        EventDriver::new(&mut doc, crate::NoopEventHandler).handle_ui_event(UiEvent::Ime(E::Preedit("k".into(), Some((1, 1)))));
+        let areas = areas.lock().unwrap();
+        assert!(areas.len() >= 2, "{:?}", calls.lock().unwrap());
+        // At the field, then at the caret after "k" (untransformed: (205, 155)).
+        assert!((areas[0].0 - 105.0).abs() < 1.0 && (areas[0].1 - 105.0).abs() < 1.0, "{areas:?}");
+        let (x, y) = *areas.last().unwrap();
+        assert!(x > 106.0 && x < 125.0 && (y - 105.0).abs() < 1.0, "{areas:?}");
     }
 }
