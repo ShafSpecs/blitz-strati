@@ -37,6 +37,12 @@ fn textarea_text_runs_follow_live_value_without_initial_dom_text() {
         let tree = doc.build_accessibility_tree();
         let input = &tree.nodes.iter().find(|(id, _)| id.0 == textarea.as_u64()).unwrap().1;
         assert_eq!(input.value(), Some(value));
+        let editor = &doc.get_node(textarea).unwrap().element_data().unwrap().text_input_data().unwrap().editor;
+        let selection = input.text_selection().expect("text input exposes its real caret");
+        assert_eq!(selection.focus.node, input.children()[0]);
+        assert_eq!(selection.anchor.node, input.children()[0]);
+        assert_eq!(selection.focus.character_index, value[..editor.raw_selection().focus().index()].graphemes(true).count());
+        assert_eq!(selection.anchor.character_index, value[..editor.raw_selection().anchor().index()].graphemes(true).count());
         let runs: Vec<_> = input.children().iter().map(|child| {
             let run = &tree.nodes.iter().find(|(id, _)| id == child).unwrap().1;
             assert_eq!(run.role(), Role::TextRun);
