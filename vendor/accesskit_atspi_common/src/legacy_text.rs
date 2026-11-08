@@ -73,7 +73,15 @@ pub(crate) fn text_at_boundary(
 fn text_boundaries(text: &str, boundary: u32) -> Result<Vec<usize>, Error> {
     let count = text.chars().count();
     let mut offsets = vec![0, count];
-    let scalar_index = |byte: usize| text[..byte].chars().count();
+    let mut characters = text.char_indices().peekable();
+    let mut scalar = 0;
+    let mut scalar_index = |byte: usize| {
+        while characters.peek().is_some_and(|(index, _)| *index < byte) {
+            characters.next();
+            scalar += 1;
+        }
+        scalar
+    };
     match boundary {
         0 => offsets.extend(
             text.grapheme_indices(true)
@@ -171,6 +179,37 @@ fn character_range(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mixed_unicode_boundaries_scale_to_long_text() {
+        let sample = "é e\u{301}. 🙂 Hi!\n";
+        let segments = [
+            vec![0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11],
+            vec![0, 2, 8],
+            vec![1, 4, 10],
+            vec![0, 6],
+            vec![5, 11],
+            vec![12],
+            vec![11],
+        ];
+        for repetitions in [1, 5000] {
+            let text = sample.repeat(repetitions);
+            let count = 12 * repetitions;
+            for (boundary, segment) in segments.iter().enumerate() {
+                let mut expected = vec![0, count];
+                for index in 0..repetitions {
+                    expected.extend(segment.iter().map(|offset| 12 * index + offset));
+                }
+                expected.sort_unstable();
+                expected.dedup();
+                assert_eq!(
+                    text_boundaries(&text, boundary as u32).unwrap(),
+                    expected,
+                    "boundary {boundary}, repetitions {repetitions}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn atk_document_end_keeps_the_last_start_delimited_segment() {
