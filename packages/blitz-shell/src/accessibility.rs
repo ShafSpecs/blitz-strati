@@ -75,13 +75,17 @@ impl AccessibilityState {
                 self.adapter.set_focus(*is_focused);
             }
             WindowEvent::Moved(_) | WindowEvent::SurfaceResized(_) => {
-                let outer_position: (_, _) = window
+                let outer_position: (f64, f64) = window
                     .outer_position()
                     .unwrap_or_default()
                     .cast::<f64>()
                     .into();
                 let outer_size: (_, _) = window.outer_size().cast::<f64>().into();
-                let inner_position: (_, _) = window.surface_position().cast::<f64>().into();
+                let surface_position: (f64, f64) = window.surface_position().cast::<f64>().into();
+                let inner_position = (
+                    outer_position.0 + surface_position.0,
+                    outer_position.1 + surface_position.1,
+                );
                 let inner_size: (_, _) = window.surface_size().cast::<f64>().into();
 
                 self.adapter.set_window_bounds(

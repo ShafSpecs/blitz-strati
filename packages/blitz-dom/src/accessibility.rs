@@ -161,7 +161,14 @@ impl BaseDocument {
 
         let mut builder = AccessKitNode::default();
         if node.parent.is_none() {
-            builder.set_role(Role::Window)
+            builder.set_role(Role::Window);
+            let scale = self.viewport.scale_f64();
+            builder.set_bounds(Rect::new(
+                0.0,
+                0.0,
+                self.viewport.window_size.0 as f64 / scale,
+                self.viewport.window_size.1 as f64 / scale,
+            ));
         } else if let Some(element_data) = node.element_data() {
             let name = element_data.name.local.to_string();
             let role_attr = element_data.attr(local_name!("role"));
@@ -923,6 +930,43 @@ mod tests {
     fn ax_node(doc: &BaseDocument, id: NodeId) -> Node {
         let tree = doc.build_accessibility_tree();
         tree.nodes.into_iter().find(|(n, _)| n.0 == id.as_u64()).expect("node in the tree").1
+    }
+
+    #[test]
+    fn document_window_bounds_follow_viewport_size_scale_and_zoom() {
+        let (mut doc, _) = doc_with(&[("button", &[])]);
+        for (width, height, hidpi, zoom) in [
+            (400, 300, 1.0, 1.0),
+            (900, 600, 1.5, 1.25),
+            (1120, 820, 2.0, 1.0),
+            (0, 0, 1.0, 1.0),
+        ] {
+            let mut viewport = Viewport::new(width, height, hidpi, ColorScheme::Light);
+            viewport.zoom = zoom;
+            let scale = viewport.scale_f64();
+            doc.set_viewport(viewport);
+            doc.resolve(0.0);
+            let document = ax_node(&doc, doc.root_node().id);
+            assert_eq!(document.role(), accesskit::Role::Window);
+            let bounds = document
+                .bounds()
+                .expect("document Window has viewport bounds");
+            assert_eq!(
+                bounds,
+                accesskit::Rect::new(0.0, 0.0, width as f64 / scale, height as f64 / scale)
+            );
+            let tree = doc.build_accessibility_tree();
+            let window = &tree
+                .nodes
+                .iter()
+                .find(|(id, _)| id.0 == u64::MAX)
+                .unwrap()
+                .1;
+            assert_eq!(
+                window.transform().unwrap().transform_rect_bbox(bounds),
+                accesskit::Rect::new(0.0, 0.0, width as f64, height as f64)
+            );
+        }
     }
 
     fn act(doc: &mut BaseDocument, id: NodeId, action: Action, data: Option<ActionData>) -> bool {
