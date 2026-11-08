@@ -29,6 +29,7 @@ use zbus::{
 };
 
 pub(crate) struct Bus {
+    _keyboard_task: Task<()>,
     conn: Connection,
     _task: Task<()>,
     socket_proxy: SocketProxy<'static>,
@@ -36,6 +37,13 @@ pub(crate) struct Bus {
 }
 
 impl Bus {
+    pub(crate) async fn forward_key_event(
+        &self,
+        event: crate::keyboard::KeyEvent,
+        deadline: std::time::Instant,
+    ) -> bool {
+        crate::keyboard::forward(&self.conn, event, deadline).await
+    }
     pub(crate) async fn new(
         session_bus: &Connection,
         executor: &Executor<'_>,
@@ -59,7 +67,15 @@ impl Bus {
             "accesskit_atspi_bus_task",
         );
         let socket_proxy = SocketProxy::new(&conn).await?;
+        let keyboard_conn = conn.clone();
+        let keyboard_task = executor.spawn(
+            async move {
+                let _ = crate::keyboard::track_listeners(keyboard_conn).await;
+            },
+            "accesskit_keyboard_listeners",
+        );
         let mut bus = Bus {
+            _keyboard_task: keyboard_task,
             conn,
             _task,
             socket_proxy,

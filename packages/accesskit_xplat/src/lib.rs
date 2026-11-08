@@ -176,7 +176,50 @@ pub struct Adapter {
     inner: platform_impl::Adapter,
 }
 
+#[cfg(target_os = "linux")]
+pub struct KeyEvent {
+    pub event_type: u32,
+    pub id: i32,
+    pub hw_code: i16,
+    pub modifiers: i16,
+    pub timestamp: i32,
+    pub event_string: String,
+    pub is_text: bool,
+}
+
 impl Adapter {
+    #[cfg(target_os = "linux")]
+    pub fn has_key_listeners(&self) -> bool {
+        #[cfg(feature = "accesskit_unix")]
+        {
+            self.inner.has_key_listeners()
+        }
+        #[cfg(not(feature = "accesskit_unix"))]
+        {
+            false
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn forward_key_event(&self, event: KeyEvent) -> bool {
+        #[cfg(feature = "accesskit_unix")]
+        {
+            self.inner.forward_key_event(accesskit_unix::KeyEvent {
+                event_type: event.event_type,
+                id: event.id,
+                hw_code: event.hw_code,
+                modifiers: event.modifiers,
+                timestamp: event.timestamp,
+                event_string: event.event_string,
+                is_text: event.is_text,
+            })
+        }
+        #[cfg(not(feature = "accesskit_unix"))]
+        {
+            let _ = event;
+            false
+        }
+    }
     /// Creates a new AccessKit adapter for a winit window. This must be done
     /// before the window is shown for the first time. This means that you must
     /// use `WindowAttributes::with_visible` to make the window

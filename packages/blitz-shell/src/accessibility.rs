@@ -9,10 +9,16 @@ use winit::{
     window::{Window, WindowId},
 };
 
+#[cfg(target_os = "linux")]
+#[path = "linux_keyboard.rs"]
+mod linux_keyboard;
+
 /// State of the accessibility node tree and platform adapter.
 pub struct AccessibilityState {
     // /// Adapter to connect to the [`EventLoop`](`winit::event_loop::EventLoop`).
     adapter: Adapter,
+    #[cfg(target_os = "linux")]
+    keyboard: linux_keyboard::Keyboard,
 }
 
 struct Handler {
@@ -32,6 +38,8 @@ impl AccessibilityState {
     pub fn new(window: &dyn Window, proxy: BlitzShellProxy) -> Self {
         let window_id = window.id();
         Self {
+            #[cfg(target_os = "linux")]
+            keyboard: linux_keyboard::Keyboard::default(),
             adapter: Adapter::with_combined_handler(
                 #[cfg(target_os = "android")]
                 &crate::current_android_app(),
@@ -45,6 +53,16 @@ impl AccessibilityState {
         let _ = doc;
         self.adapter
             .update_if_active(|| doc.build_accessibility_tree());
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn process_key_event(&mut self, event: &WindowEvent, doc: &BaseDocument) -> bool {
+        let protected = doc
+            .get_focussed_node_id()
+            .and_then(|id| doc.get_node(id))
+            .and_then(|node| node.attr("type".into()))
+            .is_some_and(|value| value.eq_ignore_ascii_case("password"));
+        self.keyboard.process(&self.adapter, event, protected)
     }
 
     /// Allows reacting to window events.

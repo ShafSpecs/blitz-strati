@@ -11,6 +11,15 @@ pub struct Adapter {
 }
 
 impl Adapter {
+    #[cfg(target_os = "linux")]
+    pub fn has_key_listeners(&self) -> bool {
+        self.adapter.has_key_listeners()
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn forward_key_event(&self, event: accesskit_unix::KeyEvent) -> bool {
+        self.adapter.forward_key_event(event)
+    }
     pub fn new(
         _window_handle: RawWindowHandle,
         activation_handler: impl 'static + ActivationHandler + Send,
