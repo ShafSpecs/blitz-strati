@@ -6,6 +6,7 @@ use accesskit::{
     TreeUpdate,
 };
 use style::properties::longhands::visibility;
+use unicode_segmentation::UnicodeSegmentation;
 
 impl BaseDocument {
     pub fn build_accessibility_tree(&self) -> TreeUpdate {
@@ -110,6 +111,7 @@ impl BaseDocument {
             .into_iter()
             .map(|(_, (id, node))| (id, node))
             .collect();
+        add_input_text_runs(&mut nodes);
         nodes.push((NodeId(u64::MAX), window));
 
         let tree = TreeInfo::new(NodeId(u64::MAX));
@@ -213,6 +215,7 @@ impl BaseDocument {
         } else if node.is_text_node() {
             builder.set_role(Role::TextRun);
             builder.set_value(node.text_content());
+            builder.set_character_lengths(text_character_lengths(&node.text_content()));
             parent.push_labelled_by(id)
         }
 
@@ -221,6 +224,45 @@ impl BaseDocument {
         (id, builder)
     }
 }
+
+fn add_input_text_runs(nodes: &mut Vec<(NodeId, AccessKitNode)>) {
+    let mut occupied: std::collections::HashSet<_> = nodes.iter().map(|(id, _)| *id).collect();
+    occupied.insert(NodeId(u64::MAX));
+    let mut next = u64::MAX - 1;
+    let mut runs = Vec::new();
+    nodes.sort_unstable_by_key(|(id, _)| *id);
+    for (_, node) in nodes.iter_mut() {
+        if !matches!(node.role(), Role::TextInput | Role::MultilineTextInput | Role::SearchInput | Role::PasswordInput | Role::EmailInput | Role::NumberInput | Role::PhoneNumberInput | Role::UrlInput) {
+            continue;
+        }
+        let Some(value) = node.value() else { continue };
+        while occupied.contains(&NodeId(next)) {
+            next -= 1;
+        }
+        let id = NodeId(next);
+        occupied.insert(id);
+        let mut run = AccessKitNode::new(Role::TextRun);
+        run.set_value(value);
+        run.set_character_lengths(text_character_lengths(value));
+        node.push_child(id);
+        runs.push((id, run));
+    }
+    nodes.extend(runs);
+}
+
+fn text_character_lengths(value: &str) -> Vec<u8> {
+    value.graphemes(true).flat_map(|grapheme| {
+        if let Ok(length) = u8::try_from(grapheme.len()) {
+            vec![length]
+        } else {
+            grapheme.chars().map(|c| c.len_utf8() as u8).collect()
+        }
+    }).collect()
+}
+
+#[cfg(test)]
+#[path = "accessibility_text_tests.rs"]
+mod text_run_tests;
 
 impl BaseDocument {
     /// States (checked, pressed, expanded, selected, disabled, values) and the
