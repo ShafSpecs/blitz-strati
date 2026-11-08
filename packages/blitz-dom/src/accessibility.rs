@@ -258,13 +258,15 @@ fn add_input_text_runs(nodes: &mut Vec<(NodeId, AccessKitNode)>) {
 }
 
 fn text_character_lengths(value: &str) -> Vec<u8> {
-    value.graphemes(true).flat_map(|grapheme| {
+    let mut lengths = Vec::new();
+    for grapheme in value.graphemes(true) {
         if let Ok(length) = u8::try_from(grapheme.len()) {
-            vec![length]
+            lengths.push(length);
         } else {
-            grapheme.chars().map(|c| c.len_utf8() as u8).collect()
+            lengths.extend(grapheme.chars().map(|c| c.len_utf8() as u8));
         }
-    }).collect()
+    }
+    lengths
 }
 
 #[cfg(test)]
