@@ -168,11 +168,7 @@ impl Keyboard {
                     protected,
                 );
                 if !allowed || !has_press {
-                    self.consumed.remove(&event.physical_key);
-                    if pressed {
-                        self.suppress_ime = false;
-                    }
-                    return false;
+                    return self.filter_key(event.physical_key, pressed, false);
                 }
                 let consumed = if has_listeners() {
                     let elapsed = self
@@ -921,5 +917,67 @@ mod tests {
             );
             assert_eq!(seen.len(), usize::from(!repeat));
         }
+    }
+
+    #[test]
+    fn privacy_revocation_preserves_consumed_command_lifecycle() {
+        let mut keyboard = Keyboard::default();
+        let mut seen = Vec::new();
+        deliver(
+            &mut keyboard,
+            &input(KeyCode::Insert, Key::Named(NamedKey::Insert), None, true),
+            true,
+            &mut seen,
+        );
+        let mut event = input(KeyCode::KeyT, Key::Character("t".into()), Some("t"), true);
+        assert!(keyboard.process_with(
+            &event,
+            true,
+            || true,
+            |payload| {
+                seen.push(payload);
+                true
+            }
+        ));
+        deliver(
+            &mut keyboard,
+            &input(KeyCode::Insert, Key::Named(NamedKey::Insert), None, false),
+            true,
+            &mut seen,
+        );
+        if let WindowEvent::KeyboardInput { event, .. } = &mut event {
+            event.repeat = true;
+        }
+        assert!(keyboard.process_with(
+            &event,
+            true,
+            || true,
+            |_| panic!("private repeat forwarded")
+        ));
+        assert!(keyboard.process_with(
+            &input(KeyCode::KeyT, Key::Character("t".into()), Some("t"), false),
+            true,
+            || true,
+            |_| panic!("private release forwarded")
+        ));
+        for event in [
+            WindowEvent::Ime(Ime::Commit("t".into())),
+            WindowEvent::Ime(Ime::Preedit("t".into(), Some((0, 1)))),
+        ] {
+            assert!(keyboard.process_with(&event, true, || true, |_| panic!("IME forwarded")));
+        }
+        assert!(keyboard.consumed.is_empty());
+        assert!(!deliver(
+            &mut keyboard,
+            &input(KeyCode::KeyA, Key::Character("a".into()), Some("a"), true),
+            true,
+            &mut seen
+        ));
+        assert!(!deliver(
+            &mut keyboard,
+            &WindowEvent::Ime(Ime::Commit("a".into())),
+            true,
+            &mut seen
+        ));
     }
 }
