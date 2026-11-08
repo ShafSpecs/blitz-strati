@@ -27,7 +27,7 @@ members = [
     "examples/wgpu_texture",
     "examples/wasm_hello",
 ]
-exclude = ["sites"]
+exclude = ["sites", "vendor/accesskit_unix", "vendor/accesskit_atspi_common"]
 resolver = "2"
 
 [workspace.package]
@@ -295,6 +295,10 @@ vello_common = "0.3"
 wgpu = { workspace = true }
 wgpu_context = { workspace = true }
 rustc-hash = { workspace = true }
+
+[patch.crates-io]
+accesskit_unix = { path = "vendor/accesskit_unix" }
+accesskit_atspi_common = { path = "vendor/accesskit_atspi_common" }
 
 # [patch.crates-io]
 # anyrender = { path = "../anyrender/crates/anyrender" }
