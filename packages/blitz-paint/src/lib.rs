@@ -79,7 +79,7 @@ pub fn paint_scene(
     #[allow(unused_mut)]
     let mut custom_widget_scenes: CustomWidgetSceneMap = HashMap::new();
     #[cfg(feature = "custom-widget")]
-    {
+    if has_custom_widgets(doc) {
         let geometry = std::cell::RefCell::new(WidgetGeometryMap::new());
         let mut painter = BlitzDomPainter::new(
             doc,
@@ -118,6 +118,14 @@ pub fn paint_scene(
     //     CLIP_DEPTH_USED.load(atomic::Ordering::SeqCst),
     //     CLIPS_WANTED.load(atomic::Ordering::SeqCst)
     // );
+}
+
+#[cfg(feature = "custom-widget")]
+fn has_custom_widgets(doc: &BaseDocument) -> bool {
+    !doc.custom_widget_node_ids().is_empty()
+        || doc.sub_document_node_ids().into_iter().any(|id| {
+            doc.subdoc(id).is_some_and(|subdoc| has_custom_widgets(&subdoc.inner()))
+        })
 }
 
 #[cfg(feature = "custom-widget")]

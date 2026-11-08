@@ -8,6 +8,29 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 #[test]
+fn widget_presence_includes_nested_subdocuments() {
+    fn document() -> (BaseDocument, blitz_dom::NodeId) {
+        let mut doc = BaseDocument::new(DocumentConfig::default());
+        let node = doc.mutate().create_element(qual_name!("div", html), vec![]);
+        (doc, node)
+    }
+    let (mut doc, host) = document();
+    let (mut child, nested_host) = document();
+    let (mut nested, widget) = document();
+    assert!(!super::has_custom_widgets(&doc));
+    child.set_sub_document(nested_host, Box::new(BaseDocument::new(DocumentConfig::default())));
+    doc.set_sub_document(host, Box::new(child));
+    assert!(!super::has_custom_widgets(&doc));
+    nested.set_custom_widget(widget, Box::new(Record(Rc::default())));
+    doc.subdoc_mut(host).unwrap().inner_mut().set_sub_document(nested_host, Box::new(nested));
+    assert!(super::has_custom_widgets(&doc));
+    doc.remove_sub_document(host);
+    assert!(!super::has_custom_widgets(&doc));
+    doc.set_custom_widget(host, Box::new(Record(Rc::default())));
+    assert!(super::has_custom_widgets(&doc));
+}
+
+#[test]
 fn sizes_snap_both_device_edges() {
     for scale in [1.0, 1.25, 1.5, 2.0] {
         for (x, width) in [(37.3, 101.0), (0.4, 0.4), (0.0, 100.0), (-0.4, 0.4)] {
