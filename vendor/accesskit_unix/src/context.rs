@@ -216,6 +216,18 @@ async fn process_adapter_message(
     message: Message,
 ) -> zbus::Result<()> {
     match message {
+        Message::ForwardKey {
+            event,
+            deadline,
+            reply,
+        } => {
+            let consumed = if let Some(bus) = atspi_bus {
+                bus.forward_key_event(event, deadline).await
+            } else {
+                false
+            };
+            let _ = reply.send(consumed);
+        }
         Message::AddAdapter {
             id,
             activation_handler,

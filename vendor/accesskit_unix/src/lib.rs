@@ -22,6 +22,8 @@ mod adapter;
 mod atspi;
 mod context;
 mod executor;
+mod keyboard;
 mod util;
 
 pub use adapter::Adapter;
+pub use keyboard::KeyEvent;

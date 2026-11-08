@@ -607,6 +607,14 @@ impl<Rend: WindowRenderer> View<Rend> {
         self.accessibility
             .process_window_event(&*self.window, &event);
 
+        #[cfg(all(feature = "accessibility", target_os = "linux"))]
+        if self
+            .accessibility
+            .process_key_event(&event, &self.doc.inner())
+        {
+            return;
+        }
+
         match event {
             WindowEvent::Destroyed => {}
             WindowEvent::ActivationTokenDone { .. } => {},

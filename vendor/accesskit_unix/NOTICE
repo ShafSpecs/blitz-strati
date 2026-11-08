@@ -1,4 +1,5 @@
 Vendored from crates.io accesskit_unix 0.24.0 (AccessKit, MIT OR Apache-2.0).
 Patched locally to expose deprecated AT-SPI Text boundary methods used by
 Orca 42/libatspi 2.44, and preserve the struct argument in AT-SPI Cache
-AddAccessible/RemoveAccessible signals. Sources otherwise retain their upstream form.
+AddAccessible/RemoveAccessible signals, and forward bounded synchronous AT-SPI
+keyboard events with registry listener tracking. Sources otherwise retain their upstream form.

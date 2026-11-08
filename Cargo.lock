@@ -84,6 +84,7 @@ dependencies = [
  "accesskit_atspi_common",
  "async-channel",
  "async-executor",
+ "async-io",
  "async-task",
  "atspi",
  "futures-lite",
@@ -1051,6 +1052,7 @@ dependencies = [
  "web-sys",
  "web-time",
  "winit",
+ "xkbcommon-dl",
 ]
 
 [[package]]

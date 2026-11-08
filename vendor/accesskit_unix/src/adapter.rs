@@ -17,6 +17,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::UnboundedSender as Sender;
 
 use crate::context::{get_or_init_app_context, get_or_init_messages};
+use crate::keyboard::{self, KeyEvent};
 
 pub(crate) struct Callback {
     messages: Sender<Message>,
@@ -127,6 +128,26 @@ pub struct Adapter {
 }
 
 impl Adapter {
+    pub fn has_key_listeners(&self) -> bool {
+        keyboard::LISTENERS.load(std::sync::atomic::Ordering::Acquire)
+            && self
+                .state
+                .try_lock()
+                .is_ok_and(|state| matches!(*state, AdapterState::Active(_)))
+    }
+
+    pub fn forward_key_event(&self, event: KeyEvent) -> bool {
+        if !self.has_key_listeners() {
+            return false;
+        }
+        keyboard::request(event, |event, deadline, reply| {
+            self.send_message(Message::ForwardKey {
+                event,
+                deadline,
+                reply,
+            });
+        })
+    }
     /// Create a new Unix adapter.
     ///
     /// All of the handlers will always be called from another thread.
@@ -244,6 +265,11 @@ impl Drop for Adapter {
 }
 
 pub(crate) enum Message {
+    ForwardKey {
+        event: KeyEvent,
+        deadline: std::time::Instant,
+        reply: std::sync::mpsc::Sender<bool>,
+    },
     AddAdapter {
         id: usize,
         activation_handler: Box<dyn ActivationHandler + Send>,
