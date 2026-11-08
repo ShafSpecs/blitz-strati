@@ -137,7 +137,9 @@ impl<Handler: EventHandler> EventDriver<'_, Handler> {
         let Some(el) = doc.nodes[target].element_data_mut() else {
             return false;
         };
-        if el.attr(local_name!("readonly")).is_some() {
+        if el.attr(local_name!("readonly")).is_some()
+            || el.attrs().iter().any(|attr| &*attr.name.local == "aria-readonly" && attr.value == "true")
+        {
             return false;
         }
         let Some(input) = el.text_input_data_mut() else {

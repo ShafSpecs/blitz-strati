@@ -961,6 +961,37 @@ mod tests {
         assert!(n[7].is_disabled() && !n[7].supports_action(Action::Click) && !n[7].supports_action(Action::Focus));
     }
 
+    #[test]
+    fn set_value_respects_text_mutation_restrictions() {
+        for restriction in ["readonly", "aria-readonly", "disabled"] {
+            let (mut doc, ids) = doc_with(&[
+                ("input", &[("type", "text"), ("value", "original"), (restriction, "true")]),
+            ]);
+            assert!(!ax_node(&doc, ids[0]).supports_action(Action::SetValue));
+            assert!(!act(&mut doc, ids[0], Action::SetValue, Some(ActionData::Value("changed".into()))), "{restriction} rejects SetValue");
+            let input = doc.nodes[ids[0]].element_data().unwrap().text_input_data().unwrap();
+            assert_eq!(input.editor.raw_text(), "original", "{restriction} preserves editor value");
+            assert_eq!(ax_node(&doc, ids[0]).value(), Some("original"));
+        }
+    }
+
+    #[test]
+    fn password_set_value_keeps_accessibility_tree_masked() {
+        let (mut doc, ids) = doc_with(&[("input", &[("type", "password")])]);
+        assert!(act(&mut doc, ids[0], Action::SetValue, Some(ActionData::Value("hunter2".into()))));
+        let input = doc.nodes[ids[0]].element_data().unwrap().text_input_data().unwrap();
+        assert_eq!(input.value(), "hunter2");
+        assert_eq!(input.editor.raw_text(), "•••••••");
+        let tree = doc.build_accessibility_tree();
+        let node = &tree.nodes.iter().find(|(id, _)| id.0 == ids[0].as_u64()).unwrap().1;
+        assert_eq!(node.value(), Some("•••••••"));
+        assert_eq!(node.children().len(), 1);
+        let run = &tree.nodes.iter().find(|(id, _)| *id == node.children()[0]).unwrap().1;
+        assert_eq!(run.role(), accesskit::Role::TextRun);
+        assert_eq!(run.value(), Some("•••••••"));
+        assert!(tree.nodes.iter().all(|(_, node)| !format!("{node:?}").contains("hunter2")));
+    }
+
     /// Requested actions do what the input they stand for does.
     #[test]
     fn actions_do_what_input_does() {
