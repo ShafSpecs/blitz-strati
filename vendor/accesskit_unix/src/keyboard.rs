@@ -4,6 +4,7 @@ use std::{
     collections::HashSet,
     future::Future,
     sync::{
+        Arc, LazyLock,
         atomic::{AtomicBool, Ordering},
         mpsc,
     },
@@ -19,8 +20,18 @@ pub(crate) const KEY_TIMEOUT: Duration = Duration::from_millis(50);
 const REGISTRY: &str = "org.a11y.atspi.Registry";
 const PATH: &str = "/org/a11y/atspi/registry/deviceeventcontroller";
 const INTERFACE: &str = "org.a11y.atspi.DeviceEventController";
+static PENDING: LazyLock<Arc<AtomicBool>> = LazyLock::new(|| Arc::new(AtomicBool::new(false)));
 
-/// A native key event. Strings must not contain protected input text.
+pub(crate) struct KeyPermit(Arc<AtomicBool>);
+
+impl Drop for KeyPermit {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
+}
+
+/// A native key event. Callers must apply their protected-input policy before forwarding.
+/// Forwarded command exceptions retain their identifiers, hardware codes, and strings.
 #[derive(Clone, Serialize, Deserialize, Type, PartialEq, Eq)]
 pub struct KeyEvent {
     pub event_type: u32,
@@ -48,11 +59,26 @@ pub(crate) async fn bounded<T>(
 
 pub(crate) fn request(
     event: KeyEvent,
-    send: impl FnOnce(KeyEvent, Instant, mpsc::Sender<bool>),
+    send: impl FnOnce(KeyEvent, Instant, mpsc::Sender<bool>, KeyPermit),
 ) -> bool {
+    request_with(&PENDING, event, send)
+}
+
+fn request_with(
+    pending: &Arc<AtomicBool>,
+    event: KeyEvent,
+    send: impl FnOnce(KeyEvent, Instant, mpsc::Sender<bool>, KeyPermit),
+) -> bool {
+    if pending
+        .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+        .is_err()
+    {
+        return false;
+    }
+    let permit = KeyPermit(Arc::clone(pending));
     let deadline = Instant::now() + KEY_TIMEOUT;
     let (tx, rx) = mpsc::channel();
-    send(event, deadline, tx);
+    send(event, deadline, tx, permit);
     rx.recv_timeout(deadline.saturating_duration_since(Instant::now()))
         .unwrap_or(false)
 }
@@ -214,22 +240,81 @@ mod tests {
         assert!(!has_local_listeners(&listeners));
     }
     #[test]
+    fn deregister_removes_all_endpoint_registrations_and_preserves_other_endpoints() {
+        let first = Listener(
+            ":1.1".into(),
+            OwnedObjectPath::try_from("/listener").unwrap(),
+            1,
+            1,
+            vec![],
+            0,
+            (true, true, false),
+        );
+        let mut second = first.clone();
+        second.3 = 2;
+        second.5 = 4;
+        second.4 = vec![(38, 97, "a".into(), 0)];
+        let mut other = first.clone();
+        other.1 = OwnedObjectPath::try_from("/other").unwrap();
+        let mut listeners = HashSet::from([first.clone(), second, other.clone()]);
+        let mut removed = first;
+        removed.6 = (false, false, false);
+        deregister_listener(&mut listeners, &removed);
+        assert!(listeners == HashSet::from([other]));
+        assert!(has_local_listeners(&listeners));
+    }
+    #[test]
     fn unavailable_consumed_and_timeout() {
-        assert!(!request(event(), |_, _, _| {}));
-        assert!(request(event(), |_, _, tx| {
+        assert!(!request(event(), |_, _, _, _| {}));
+        assert!(request(event(), |_, _, tx, _permit| {
             tx.send(true).unwrap();
         }));
-        assert!(!request(event(), |_, _, tx| {
+        assert!(!request(event(), |_, _, tx, _permit| {
             tx.send(false).unwrap();
         }));
         let started = Instant::now();
         let keep = std::sync::Mutex::new(None);
-        assert!(!request(event(), |_, _, tx| {
+        assert!(!request(event(), |_, _, tx, _permit| {
             *keep.lock().unwrap() = Some(tx);
         }));
         assert!(started.elapsed() >= KEY_TIMEOUT);
         assert!(started.elapsed() < Duration::from_millis(200));
         assert!(keep.lock().unwrap().take().unwrap().send(true).is_err());
+    }
+
+    #[test]
+    fn stalled_queue_retains_permit_until_drained_then_recovers() {
+        let pending = Arc::new(AtomicBool::new(false));
+        let mut queued = None;
+        let started = Instant::now();
+        assert!(!request_with(
+            &pending,
+            event(),
+            |event, deadline, reply, permit| {
+                queued = Some(crate::adapter::Message::ForwardKey {
+                    event,
+                    deadline,
+                    reply,
+                    permit,
+                });
+            }
+        ));
+        assert!(started.elapsed() >= KEY_TIMEOUT);
+        assert!(started.elapsed() < Duration::from_millis(200));
+        assert!(pending.load(Ordering::Acquire));
+        let started = Instant::now();
+        for _ in 0..100 {
+            assert!(!request_with(&pending, event(), |_, _, _, _| panic!(
+                "queued a second key"
+            )));
+        }
+        assert!(started.elapsed() < KEY_TIMEOUT);
+        drop(queued.take());
+        assert!(!pending.load(Ordering::Acquire));
+        assert!(request_with(&pending, event(), |_, _, reply, _permit| {
+            reply.send(true).unwrap();
+        }));
+        assert!(!pending.load(Ordering::Acquire));
     }
 
     #[test]

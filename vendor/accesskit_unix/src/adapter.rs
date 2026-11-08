@@ -140,11 +140,12 @@ impl Adapter {
         if !self.has_key_listeners() {
             return false;
         }
-        keyboard::request(event, |event, deadline, reply| {
+        keyboard::request(event, |event, deadline, reply, permit| {
             self.send_message(Message::ForwardKey {
                 event,
                 deadline,
                 reply,
+                permit,
             });
         })
     }
@@ -269,6 +270,7 @@ pub(crate) enum Message {
         event: KeyEvent,
         deadline: std::time::Instant,
         reply: std::sync::mpsc::Sender<bool>,
+        permit: keyboard::KeyPermit,
     },
     AddAdapter {
         id: usize,

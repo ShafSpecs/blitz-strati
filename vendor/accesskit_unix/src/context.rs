@@ -220,6 +220,7 @@ async fn process_adapter_message(
             event,
             deadline,
             reply,
+            permit: _permit,
         } => {
             let consumed = if let Some(bus) = atspi_bus {
                 bus.forward_key_event(event, deadline).await

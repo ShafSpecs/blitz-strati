@@ -3,3 +3,7 @@ Patched locally to expose deprecated AT-SPI Text boundary methods used by
 Orca 42/libatspi 2.44, and preserve the struct argument in AT-SPI Cache
 AddAccessible/RemoveAccessible signals, and forward bounded synchronous AT-SPI
 keyboard events with registry listener tracking. Sources otherwise retain their upstream form.
+Protected printable key lifecycles are withheld except for non-text-producing Ctrl/Super
+chords or physically held Orca modifiers. Forwarded navigation/command key IDs and
+hardware codes remain visible to AT-SPI bus clients with listener access.
+Only one key request may be queued or in flight; its permit survives caller timeout.
