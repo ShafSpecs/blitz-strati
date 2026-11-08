@@ -462,7 +462,7 @@ impl Bus {
 
     async fn emit_cache_signal<B>(&self, signal_name: &str, body: &B) -> Result<()>
     where
-        B: serde::Serialize + zbus::zvariant::DynamicType,
+        B: serde::Serialize + zbus::zvariant::Type,
     {
         map_or_ignoring_recoverable_error(
             self.conn
@@ -471,7 +471,7 @@ impl Bus {
                     cache_path(),
                     InterfaceName::from_str_unchecked("org.a11y.atspi.Cache"),
                     MemberName::from_str_unchecked(signal_name),
-                    body,
+                    &cache_signal_args(body),
                 )
                 .await,
             (),
@@ -499,6 +499,51 @@ impl Bus {
             (),
             |_| (),
         )
+    }
+}
+
+fn cache_signal_args<B>(item: &B) -> (&B,) {
+    (item,)
+}
+
+#[cfg(test)]
+mod cache_signal_tests {
+    use super::{cache_path, cache_signal_args};
+    use atspi::{CacheItem, ObjectRefOwned};
+
+    fn assert_wire_signature(message: &zbus::Message, signature: &[u8]) {
+        assert!(
+            message
+                .data()
+                .bytes()
+                .windows(signature.len() + 2)
+                .any(|bytes| usize::from(bytes[0]) == signature.len()
+                    && &bytes[1..=signature.len()] == signature
+                    && bytes[signature.len() + 1] == 0)
+        );
+    }
+
+    #[test]
+    fn cache_signals_preserve_struct_arguments() {
+        let item = CacheItem::default();
+        let add = zbus::Message::signal(cache_path(), "org.a11y.atspi.Cache", "AddAccessible")
+            .unwrap()
+            .build(&cache_signal_args(&item))
+            .unwrap();
+        assert_wire_signature(&add, b"((so)(so)(so)iiassusau)");
+        let (decoded,): (CacheItem,) = add.body().deserialize().unwrap();
+        assert_eq!(decoded, item);
+
+        let reference =
+            ObjectRefOwned::from_static_str_unchecked(":1.0", "/org/a11y/atspi/accessible/1");
+        let remove =
+            zbus::Message::signal(cache_path(), "org.a11y.atspi.Cache", "RemoveAccessible")
+                .unwrap()
+                .build(&cache_signal_args(&reference))
+                .unwrap();
+        assert_wire_signature(&remove, b"(so)");
+        let (decoded,): (ObjectRefOwned,) = remove.body().deserialize().unwrap();
+        assert_eq!(decoded, reference);
     }
 }
 
