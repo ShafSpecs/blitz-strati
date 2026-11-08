@@ -55,7 +55,7 @@ fn pointer_and_wheel_use_scrolled_content_origin() {
     origin.y -= 7.0;
     let coords = PointerCoords {
         client_x: origin.x + 9.0, client_y: origin.y + 12.0,
-        page_x: origin.x + 14.0, page_y: origin.y + 19.0,
+        page_x: origin.x + 9.0 + 5.0, page_y: origin.y + 12.0 + 7.0,
         screen_x: 123.0, screen_y: 456.0,
     };
     let pointer = BlitzPointerEvent {
@@ -84,6 +84,8 @@ fn pointer_and_wheel_use_scrolled_content_origin() {
         };
         assert!((coords.client_x - 9.0).abs() < 0.001);
         assert!((coords.client_y - 12.0).abs() < 0.001);
+        assert!((coords.page_x - 9.0).abs() < 0.001);
+        assert!((coords.page_y - 12.0).abs() < 0.001);
         assert_eq!((coords.screen_x, coords.screen_y), (123.0, 456.0));
     }
 }
