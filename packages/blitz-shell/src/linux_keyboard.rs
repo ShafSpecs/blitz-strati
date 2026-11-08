@@ -139,10 +139,11 @@ impl Keyboard {
             } => {
                 if *is_synthetic {
                     if !event.state.is_pressed() {
+                        let was_consumed = self.consumed.remove(&event.physical_key);
                         self.held_modifiers.remove(&event.physical_key);
                         self.decisions.remove(&event.physical_key);
                         self.forwarded.remove(&event.physical_key);
-                        self.consumed.remove(&event.physical_key);
+                        return was_consumed;
                     }
                     return false;
                 }
@@ -979,5 +980,60 @@ mod tests {
             true,
             &mut seen
         ));
+    }
+
+    #[test]
+    fn consumed_insert_q_repeat_remains_consumed_when_private() {
+        let mut keyboard = Keyboard::default();
+        let mut seen = Vec::new();
+        deliver(
+            &mut keyboard,
+            &input(KeyCode::Insert, Key::Named(NamedKey::Insert), None, true),
+            true,
+            &mut seen,
+        );
+        let mut event = input(KeyCode::KeyQ, Key::Character("q".into()), Some("q"), true);
+        assert!(keyboard.process_with(&event, true, || true, |_| true));
+        deliver(
+            &mut keyboard,
+            &input(KeyCode::Insert, Key::Named(NamedKey::Insert), None, false),
+            true,
+            &mut seen,
+        );
+        if let WindowEvent::KeyboardInput { event, .. } = &mut event {
+            event.repeat = true;
+        }
+        assert!(keyboard.process_with(
+            &event,
+            true,
+            || true,
+            |_| panic!("private repeat forwarded")
+        ));
+    }
+
+    #[test]
+    fn synthetic_release_preserves_consumption_and_ime_until_focus_loss() {
+        let mut keyboard = Keyboard::default();
+        let press = input(KeyCode::KeyQ, Key::Character("q".into()), Some("q"), true);
+        assert!(keyboard.process_with(&press, false, || true, |_| true));
+        let mut release = input(KeyCode::KeyQ, Key::Character("q".into()), Some("q"), false);
+        if let WindowEvent::KeyboardInput { is_synthetic, .. } = &mut release {
+            *is_synthetic = true;
+        }
+        assert!(keyboard.process_with(
+            &release,
+            false,
+            || true,
+            |_| panic!("synthetic release forwarded")
+        ));
+        let commit = WindowEvent::Ime(Ime::Commit("q".into()));
+        assert!(keyboard.process_with(&commit, false, || true, |_| panic!("IME forwarded")));
+        assert!(!keyboard.process_with(
+            &WindowEvent::Focused(false),
+            false,
+            || true,
+            |_| panic!("focus forwarded")
+        ));
+        assert!(!keyboard.process_with(&commit, false, || true, |_| panic!("IME forwarded")));
     }
 }
