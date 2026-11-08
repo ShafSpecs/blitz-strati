@@ -127,6 +127,8 @@ pub struct BlitzDomPainter<'dom, 'a> {
 
     // Pre-computed `Scene`s for each CustomWidget
     pub(crate) custom_widget_scenes: &'a CustomWidgetSceneMap,
+    #[cfg(feature = "custom-widget")]
+    pub(crate) widget_geometry: Option<&'a RefCell<crate::WidgetGeometryMap>>,
 }
 
 impl<'dom, 'a> BlitzDomPainter<'dom, 'a> {
@@ -165,6 +167,8 @@ impl<'dom, 'a> BlitzDomPainter<'dom, 'a> {
             draw_text_context: RefCell::new(DrawTextContext::default()),
             selection_ranges,
             custom_widget_scenes,
+            #[cfg(feature = "custom-widget")]
+            widget_geometry: None,
         }
     }
 
@@ -454,6 +458,18 @@ impl<'dom, 'a> BlitzDomPainter<'dom, 'a> {
             clip_rect
         };
 
+        #[cfg(feature = "custom-widget")]
+        if self.widget_geometry.is_some() {
+            cx.transform = cx.transform.then_translate(Vec2 {
+                x: -node.scroll_offset().x * self.scale,
+                y: -node.scroll_offset().y * self.scale,
+            });
+            cx.draw_custom_widget(scene);
+            cx.draw_sub_document(scene);
+            cx.draw_children(scene, cx.transform, child_clip_rect);
+            return;
+        }
+
         // Compute clip-path (if any) and wrap all rendering in a clip layer
         let clip_path_shape = cx.clip_path_shape();
         let has_clip_path = clip_path_shape.is_some();
@@ -631,7 +647,7 @@ impl<'dom, 'a> BlitzDomPainter<'dom, 'a> {
         node: &'dom Node,
         layout: Layout,
         transform: Affine,
-        custom_widget_scene: Option<&'a Scene>,
+        custom_widget_scene: Option<&'a (Scene, Affine)>,
     ) -> ElementCx<'dom, 'a> {
         let style = node
             .stylo_element_data()
@@ -721,7 +737,7 @@ struct ElementCx<'dom, 'a> {
     list_item: Option<&'dom ListItemLayout>,
     devtools: &'dom DevtoolSettings,
     #[cfg_attr(not(feature = "custom-widget"), expect(unused))]
-    custom_widget_scene: Option<&'a Scene>,
+    custom_widget_scene: Option<&'a (Scene, Affine)>,
 }
 
 /// Converts parley BoundingBox into peniko Rect
@@ -1268,13 +1284,16 @@ impl ElementCx<'_, '_> {
 
     #[cfg(feature = "custom-widget")]
     fn draw_custom_widget(&self, scene: &mut impl PaintScene) {
-        if let Some(widget_scene) = self.custom_widget_scene {
-            let x = self.frame.content_box.origin().x;
-            let y = self.frame.content_box.origin().y;
-            let transform = self.transform.then_translate(Vec2 { x, y });
-
+        if let Some(bounds) = self.widget_geometry {
+            if self.element.custom_widget_data().is_some() {
+                let geometry = crate::WidgetGeometry::new(self.transform, self.frame.content_box);
+                bounds.borrow_mut().insert((self.dom.id(), self.node.id), geometry);
+            }
+            return;
+        }
+        if let Some((widget_scene, transform)) = self.custom_widget_scene {
             // TODO: eliminate clone
-            scene.append_scene(widget_scene.clone(), transform);
+            scene.append_scene(widget_scene.clone(), *transform);
         }
     }
 
@@ -1290,7 +1309,8 @@ impl ElementCx<'_, '_> {
             let initial_y = translation.y + self.frame.content_box.origin().y;
             // let transform = self.transform.then_translate(Vec2 { x, y });
 
-            let painter = BlitzDomPainter::new(
+            #[allow(unused_mut)]
+            let mut painter = BlitzDomPainter::new(
                 &sub_doc,
                 scale,
                 width,
@@ -1299,6 +1319,10 @@ impl ElementCx<'_, '_> {
                 initial_y,
                 self.custom_widget_scenes,
             );
+            #[cfg(feature = "custom-widget")]
+            {
+                painter.widget_geometry = self.widget_geometry;
+            }
             painter.paint_scene(scene);
         }
     }

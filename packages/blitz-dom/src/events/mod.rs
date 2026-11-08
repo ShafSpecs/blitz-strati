@@ -5,6 +5,8 @@ mod focus;
 mod ime;
 mod keyboard;
 mod pointer;
+#[cfg(all(test, feature = "custom-widget"))]
+mod widget_tests;
 
 use crate::util::Point;
 use blitz_traits::events::{DomEvent, DomEventData, PointerCoords, UiEvent};
@@ -92,7 +94,10 @@ fn map_dom_event_to_ui_event(
         DomEventData::ContextMenu(_) => None,
         DomEventData::DoubleClick(_) => None,
         DomEventData::Input(_) => None,
-        DomEventData::Wheel(data) => Some(UiEvent::Wheel(data)),
+        DomEventData::Wheel(mut data) => {
+            adjust_coords_for_subdocument(&mut data.coords, node_offset, viewport_scroll);
+            Some(UiEvent::Wheel(data))
+        }
         DomEventData::Scroll(_) => None,
         DomEventData::Focus(_) => None,
         DomEventData::Blur(_) => None,
@@ -116,6 +121,12 @@ pub(crate) fn handle_dom_event<F: FnMut(DomEvent)>(
     mut dispatch_event: F,
 ) {
     let target_node_id = event.target;
+    #[cfg(feature = "custom-widget")]
+    let widget_origin = {
+        let origin = doc.nodes[target_node_id].content_box_origin();
+        let scroll = doc.viewport_scroll();
+        Point { x: origin.x - scroll.x as f32, y: origin.y - scroll.y as f32 }
+    };
     let node = &mut doc.nodes[target_node_id];
     let pos = node.absolute_position(0.0, 0.0);
 
@@ -170,7 +181,7 @@ pub(crate) fn handle_dom_event<F: FnMut(DomEvent)>(
             DomEventData::PointerDown(_) | DomEventData::PointerUp(_)
         );
         let viewport_scroll = Point { x: 0.0, y: 0.0 };
-        let ui_event = map_dom_event_to_ui_event(event, pos, viewport_scroll);
+        let ui_event = map_dom_event_to_ui_event(event, widget_origin, viewport_scroll);
 
         if let Some(ui_event) = ui_event {
             widget_data.widget.handle_event(&ui_event);

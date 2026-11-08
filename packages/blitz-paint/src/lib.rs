@@ -12,6 +12,8 @@ mod layers;
 mod render;
 mod sizing;
 mod text;
+#[cfg(all(test, feature = "custom-widget"))]
+mod widget_tests;
 
 use std::collections::HashMap;
 
@@ -29,7 +31,30 @@ const FONT_EMBOLDEN_ENABLED: bool = cfg!(any(
 const SELECTION_COLOR: Color = Color::from_rgb8(180, 213, 255);
 
 /// Pre-computed `Scene`s for each CustomWidget, keyed by `(document id, node id)`
-type CustomWidgetSceneMap = HashMap<(usize, NodeId), Scene>;
+type CustomWidgetSceneMap = HashMap<(usize, NodeId), (Scene, kurbo::Affine)>;
+
+#[cfg(feature = "custom-widget")]
+#[derive(Clone, Copy)]
+struct WidgetGeometry {
+    transform: kurbo::Affine,
+    width: u32,
+    height: u32,
+}
+
+#[cfg(feature = "custom-widget")]
+impl WidgetGeometry {
+    fn new(transform: kurbo::Affine, content: kurbo::Rect) -> Self {
+        let origin = transform * content.origin();
+        Self {
+            transform: transform.pre_translate(content.origin().to_vec2()),
+            width: ((origin.x + content.width()).round() - origin.x.round()).max(0.0) as u32,
+            height: ((origin.y + content.height()).round() - origin.y.round()).max(0.0) as u32,
+        }
+    }
+}
+
+#[cfg(feature = "custom-widget")]
+type WidgetGeometryMap = HashMap<(usize, NodeId), WidgetGeometry>;
 
 /// Paint a [`blitz_dom::BaseDocument`] by pushing drawing commands into
 /// an impl [`anyrender::PaintScene`].
@@ -51,12 +76,30 @@ pub fn paint_scene(
 ) {
     // Run `.paint()` on every custom widget in the document (and all subdocuments) ahead of time.
     // This helps us avoid borrow-checker issues as we recurse down the tree (`.paint()` require `&mut self`).
-    //
-    // TODO: Take widget and sub-document visibility into account
     #[allow(unused_mut)]
     let mut custom_widget_scenes: CustomWidgetSceneMap = HashMap::new();
     #[cfg(feature = "custom-widget")]
-    build_custom_widget_scenes(&mut custom_widget_scenes, doc, scene, scale);
+    {
+        let geometry = std::cell::RefCell::new(WidgetGeometryMap::new());
+        let mut painter = BlitzDomPainter::new(
+            doc,
+            scale,
+            width,
+            height,
+            x_offset as f64,
+            y_offset as f64,
+            &custom_widget_scenes,
+        );
+        painter.widget_geometry = Some(&geometry);
+        painter.paint_scene(&mut Scene::new());
+        build_custom_widget_scenes(
+            &mut custom_widget_scenes,
+            doc,
+            scene,
+            scale,
+            &geometry.into_inner(),
+        );
+    }
 
     let generator = BlitzDomPainter::new(
         doc,
@@ -83,14 +126,17 @@ fn build_custom_widget_scenes(
     doc: &mut BaseDocument,
     render_ctx: &mut impl anyrender::RenderContext,
     scale: f64,
+    geometry: &WidgetGeometryMap,
 ) {
     let doc_id = doc.id();
 
     // Process scenes for every custom widget in the document
     let custom_widget_node_ids = doc.custom_widget_node_ids();
     for node_id in custom_widget_node_ids.into_iter() {
-        if let Some(scene) = process_custom_widget_node(doc, render_ctx, node_id, scale) {
-            custom_widget_scenes.insert((doc_id, node_id), scene);
+        if let Some(bounds) = geometry.get(&(doc_id, node_id))
+            && let Some(scene) = process_custom_widget_node(doc, render_ctx, node_id, scale, *bounds)
+        {
+            custom_widget_scenes.insert((doc_id, node_id), (scene, bounds.transform));
         }
     }
 
@@ -99,7 +145,7 @@ fn build_custom_widget_scenes(
     for node_id in sub_document_node_ids.into_iter() {
         if let Some(sub_doc) = doc.get_node_mut(node_id).and_then(|node| node.subdoc_mut()) {
             let mut inner = sub_doc.inner_mut();
-            build_custom_widget_scenes(custom_widget_scenes, &mut inner, render_ctx, scale);
+            build_custom_widget_scenes(custom_widget_scenes, &mut inner, render_ctx, scale, geometry);
         }
     }
 }
@@ -110,12 +156,12 @@ fn process_custom_widget_node(
     render_ctx: &mut impl anyrender::RenderContext,
     node_id: NodeId,
     scale: f64,
+    geometry: WidgetGeometry,
 ) -> Option<Scene> {
     use blitz_dom::node::{CustomWidgetStatus, ProxyRenderContext};
 
     let node = doc.get_node_mut(node_id)?;
-    let width = (node.final_layout().size.width as f64 * scale) as u32;
-    let height = (node.final_layout().size.height as f64 * scale) as u32;
+    let WidgetGeometry { width, height, .. } = geometry;
 
     if width == 0 || height == 0 {
         return None;
