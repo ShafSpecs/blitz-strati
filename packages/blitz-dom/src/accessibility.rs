@@ -20,6 +20,9 @@ impl BaseDocument {
 
         self.visit(|node_id, node| {
             if node.is_hidden_from_accessibility_tree()
+                || node.parent.and_then(|p| nodes.get(&p)).is_some_and(|(_, parent): &(_, AccessKitNode)| {
+                    is_text_input_role(parent.role()) && parent.value().is_some()
+                })
                 || node
                     .parent
                     .map(|p| hidden_nodes.contains(&p))
@@ -225,6 +228,10 @@ impl BaseDocument {
     }
 }
 
+fn is_text_input_role(role: Role) -> bool {
+    matches!(role, Role::TextInput | Role::MultilineTextInput | Role::SearchInput | Role::PasswordInput | Role::EmailInput | Role::NumberInput | Role::PhoneNumberInput | Role::UrlInput)
+}
+
 fn add_input_text_runs(nodes: &mut Vec<(NodeId, AccessKitNode)>) {
     let mut occupied: std::collections::HashSet<_> = nodes.iter().map(|(id, _)| *id).collect();
     occupied.insert(NodeId(u64::MAX));
@@ -232,7 +239,7 @@ fn add_input_text_runs(nodes: &mut Vec<(NodeId, AccessKitNode)>) {
     let mut runs = Vec::new();
     nodes.sort_unstable_by_key(|(id, _)| *id);
     for (_, node) in nodes.iter_mut() {
-        if !matches!(node.role(), Role::TextInput | Role::MultilineTextInput | Role::SearchInput | Role::PasswordInput | Role::EmailInput | Role::NumberInput | Role::PhoneNumberInput | Role::UrlInput) {
+        if !is_text_input_role(node.role()) {
             continue;
         }
         let Some(value) = node.value() else { continue };

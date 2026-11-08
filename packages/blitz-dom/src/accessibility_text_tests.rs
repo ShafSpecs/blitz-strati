@@ -1,6 +1,53 @@
 use super::*;
 
 #[test]
+fn textarea_text_runs_follow_live_value_without_initial_dom_text() {
+    use crate::{DocumentConfig, EventDriver, NoopEventHandler, qual_name};
+    use accesskit::{ActionData, ActionRequest};
+    use blitz_traits::shell::{ColorScheme, Viewport};
+
+    let mut doc = BaseDocument::new(DocumentConfig {
+        viewport: Some(Viewport::new(400, 300, 1.0, ColorScheme::Light)),
+        ..Default::default()
+    });
+    let root = doc.root_node().id;
+    let mut m = doc.mutate();
+    let html = m.create_element(qual_name!("html", html), vec![]);
+    let body = m.create_element(qual_name!("body", html), vec![]);
+    let textarea = m.create_element(qual_name!("textarea", html), vec![]);
+    let initial = m.create_text_node("init");
+    m.append_children(textarea, &[initial]);
+    m.append_children(body, &[textarea]);
+    m.append_children(html, &[body]);
+    m.append_children(root, &[html]);
+    drop(m);
+    doc.resolve(0.0);
+
+    let mut observed = Vec::new();
+    for value in ["init", "edited🙂", ""] {
+        if value != "init" {
+            let request = ActionRequest {
+                action: Action::SetValue,
+                target_tree: TreeId::ROOT,
+                target_node: NodeId(textarea.as_u64()),
+                data: Some(ActionData::Value(value.into())),
+            };
+            assert!(EventDriver::new(&mut doc, NoopEventHandler).handle_accessibility_action(&request));
+        }
+        let tree = doc.build_accessibility_tree();
+        let input = &tree.nodes.iter().find(|(id, _)| id.0 == textarea.as_u64()).unwrap().1;
+        assert_eq!(input.value(), Some(value));
+        let runs: Vec<_> = input.children().iter().map(|child| {
+            let run = &tree.nodes.iter().find(|(id, _)| id == child).unwrap().1;
+            assert_eq!(run.role(), Role::TextRun);
+            run.value().unwrap().to_owned()
+        }).collect();
+        observed.push(runs);
+    }
+    assert_eq!(observed, vec![vec!["init"], vec!["edited🙂"], vec![""]]);
+}
+
+#[test]
 fn input_text_runs_cover_unicode_empty_and_masked_values() {
     for (role, value) in [
         (Role::TextInput, "café🙂"),
