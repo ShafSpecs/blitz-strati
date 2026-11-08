@@ -882,8 +882,12 @@ fn create_text_editor(doc: &mut BaseDocument, input_element_id: NodeId, is_multi
     let element = &mut node.data.downcast_element_mut().unwrap();
     if !matches!(element.special_data, SpecialElementData::TextInput(_)) {
         let mut text_input_data = TextInputData::new(is_multiline);
-        let editor = &mut text_input_data.editor;
-        editor.set_text(&initial_text);
+        if element.attr(local_name!("type")).is_some_and(|t| t.eq_ignore_ascii_case("password")) {
+            text_input_data.editor.set_text(&crate::node::masked(&initial_text));
+            text_input_data.password = Some(initial_text);
+        } else {
+            text_input_data.editor.set_text(&initial_text);
+        }
         element.special_data = SpecialElementData::TextInput(text_input_data);
     }
 
