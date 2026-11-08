@@ -14,6 +14,7 @@ use winit::{
 pub(super) struct Keyboard {
     modifiers: ModifiersState,
     consumed: HashSet<PhysicalKey>,
+    protected: HashSet<PhysicalKey>,
     suppress_ime: bool,
     clock: Option<Instant>,
     timestamp: u32,
@@ -43,6 +44,7 @@ impl Keyboard {
                     return false;
                 }
                 let pressed = event.state.is_pressed();
+                let protected = self.protected_key(event.physical_key, pressed, protected);
                 let consumed = if adapter.has_key_listeners() {
                     let elapsed = self
                         .clock
@@ -80,6 +82,17 @@ impl Keyboard {
             consumed
         } else {
             self.consumed.remove(&key) || consumed
+        }
+    }
+
+    fn protected_key(&mut self, key: PhysicalKey, pressed: bool, protected: bool) -> bool {
+        if pressed {
+            if protected {
+                self.protected.insert(key);
+            }
+            protected || self.protected.contains(&key)
+        } else {
+            self.protected.remove(&key) || protected
         }
     }
 }
@@ -329,5 +342,15 @@ mod tests {
         assert!(keyboard.suppress_ime);
         assert!(!keyboard.filter_key(a, true, false));
         assert!(!keyboard.suppress_ime);
+    }
+
+    #[test]
+    fn protected_press_stays_redacted_after_focus_changes() {
+        let mut keyboard = Keyboard::default();
+        let key = PhysicalKey::Code(KeyCode::KeyA);
+        assert!(keyboard.protected_key(key, true, true));
+        assert!(keyboard.protected_key(key, true, false));
+        assert!(keyboard.protected_key(key, false, false));
+        assert!(!keyboard.protected_key(key, true, false));
     }
 }
