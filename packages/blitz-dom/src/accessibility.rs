@@ -114,7 +114,24 @@ impl BaseDocument {
             .into_iter()
             .map(|(_, (id, node))| (id, node))
             .collect();
-        add_input_text_runs(&mut nodes);
+        let runs = add_input_text_runs(&mut nodes);
+        for (input_id, run_id) in runs {
+            let Some(input) = self.get_node(BlitzDomNodeId::from_u64(input_id.0))
+                .and_then(|node| node.element_data())
+                .and_then(|element| element.text_input_data()) else { continue };
+            let selection = input.editor.raw_selection();
+            let value = input.editor.raw_text();
+            let position = |byte_index| accesskit::TextPosition {
+                node: run_id,
+                character_index: text_character_index(value, byte_index),
+            };
+            if let Some((_, node)) = nodes.iter_mut().find(|(id, _)| *id == input_id) {
+                node.set_text_selection(accesskit::TextSelection {
+                    anchor: position(selection.anchor().index()),
+                    focus: position(selection.focus().index()),
+                });
+            }
+        }
         nodes.push((NodeId(u64::MAX), window));
 
         let tree = TreeInfo::new(NodeId(u64::MAX));
@@ -232,13 +249,14 @@ fn is_text_input_role(role: Role) -> bool {
     matches!(role, Role::TextInput | Role::MultilineTextInput | Role::SearchInput | Role::PasswordInput | Role::EmailInput | Role::NumberInput | Role::PhoneNumberInput | Role::UrlInput)
 }
 
-fn add_input_text_runs(nodes: &mut Vec<(NodeId, AccessKitNode)>) {
+fn add_input_text_runs(nodes: &mut Vec<(NodeId, AccessKitNode)>) -> Vec<(NodeId, NodeId)> {
     let mut occupied: std::collections::HashSet<_> = nodes.iter().map(|(id, _)| *id).collect();
     occupied.insert(NodeId(u64::MAX));
     let mut next = u64::MAX - 1;
     let mut runs = Vec::new();
+    let mut inputs = Vec::new();
     nodes.sort_unstable_by_key(|(id, _)| *id);
-    for (_, node) in nodes.iter_mut() {
+    for (input_id, node) in nodes.iter_mut() {
         if !is_text_input_role(node.role()) {
             continue;
         }
@@ -252,9 +270,19 @@ fn add_input_text_runs(nodes: &mut Vec<(NodeId, AccessKitNode)>) {
         run.set_value(value);
         run.set_character_lengths(text_character_lengths(value));
         node.push_child(id);
+        inputs.push((*input_id, id));
         runs.push((id, run));
     }
     nodes.extend(runs);
+    inputs
+}
+
+fn text_character_index(value: &str, byte_index: usize) -> usize {
+    let mut offset = 0;
+    text_character_lengths(value).into_iter().take_while(|length| {
+        offset += usize::from(*length);
+        offset <= byte_index
+    }).count()
 }
 
 fn text_character_lengths(value: &str) -> Vec<u8> {
@@ -931,6 +959,37 @@ mod tests {
         assert_eq!(n[6].numeric_value(), Some(1.0), "native range");
         assert!(n[6].supports_action(Action::SetValue));
         assert!(n[7].is_disabled() && !n[7].supports_action(Action::Click) && !n[7].supports_action(Action::Focus));
+    }
+
+    #[test]
+    fn set_value_respects_text_mutation_restrictions() {
+        for restriction in ["readonly", "aria-readonly", "disabled"] {
+            let (mut doc, ids) = doc_with(&[
+                ("input", &[("type", "text"), ("value", "original"), (restriction, "true")]),
+            ]);
+            assert!(!ax_node(&doc, ids[0]).supports_action(Action::SetValue));
+            assert!(!act(&mut doc, ids[0], Action::SetValue, Some(ActionData::Value("changed".into()))), "{restriction} rejects SetValue");
+            let input = doc.nodes[ids[0]].element_data().unwrap().text_input_data().unwrap();
+            assert_eq!(input.editor.raw_text(), "original", "{restriction} preserves editor value");
+            assert_eq!(ax_node(&doc, ids[0]).value(), Some("original"));
+        }
+    }
+
+    #[test]
+    fn password_set_value_keeps_accessibility_tree_masked() {
+        let (mut doc, ids) = doc_with(&[("input", &[("type", "password")])]);
+        assert!(act(&mut doc, ids[0], Action::SetValue, Some(ActionData::Value("hunter2".into()))));
+        let input = doc.nodes[ids[0]].element_data().unwrap().text_input_data().unwrap();
+        assert_eq!(input.value(), "hunter2");
+        assert_eq!(input.editor.raw_text(), "•••••••");
+        let tree = doc.build_accessibility_tree();
+        let node = &tree.nodes.iter().find(|(id, _)| id.0 == ids[0].as_u64()).unwrap().1;
+        assert_eq!(node.value(), Some("•••••••"));
+        assert_eq!(node.children().len(), 1);
+        let run = &tree.nodes.iter().find(|(id, _)| *id == node.children()[0]).unwrap().1;
+        assert_eq!(run.role(), accesskit::Role::TextRun);
+        assert_eq!(run.value(), Some("•••••••"));
+        assert!(tree.nodes.iter().all(|(_, node)| !format!("{node:?}").contains("hunter2")));
     }
 
     /// Requested actions do what the input they stand for does.

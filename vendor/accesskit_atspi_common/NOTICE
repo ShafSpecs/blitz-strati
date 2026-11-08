@@ -1,0 +1,5 @@
+Vendored from crates.io accesskit_atspi_common 0.21.0 (AccessKit,
+MIT OR Apache-2.0). Patched locally for deprecated AT-SPI Text boundaries
+and GTK-compatible GetText end-offset clamping. Sources otherwise retain
+their upstream form. Legacy word/sentence boundaries use Unicode segmentation;
+line boundaries include logical newlines and AccessKit's visual line ranges.
