@@ -23,19 +23,7 @@ pub(crate) fn text_at_boundary(
     let text = node.document_range().text();
     let mut boundaries = text_boundaries(&text, boundary)?;
     if matches!(boundary, 5 | 6) {
-        let mut index = 0;
-        while let Some(line) = node.line_range_from_index(index) {
-            let position = if boundary == 5 {
-                line.start()
-            } else {
-                line.end()
-            };
-            boundaries.push(position.to_global_usv_index());
-            if line.end().is_document_end() {
-                break;
-            }
-            index += 1;
-        }
+        boundaries.extend(visual_line_boundaries(node, boundary));
     }
     boundaries.sort_unstable();
     boundaries.dedup();
@@ -68,6 +56,22 @@ pub(crate) fn text_at_boundary(
         .take((end - start) as usize)
         .collect();
     Ok((value, start, end))
+}
+
+fn visual_line_boundaries(node: &NodeRef, boundary: u32) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    let mut offset = 0;
+    node.document_range().traverse_text(|run, text| {
+        if boundary == 5 && run.data().previous_on_line().is_none() {
+            offsets.push(offset);
+        }
+        offset += text.chars().count();
+        if boundary == 6 && run.data().next_on_line().is_none() {
+            offsets.push(offset);
+        }
+        None::<()>
+    });
+    offsets
 }
 
 fn text_boundaries(text: &str, boundary: u32) -> Result<Vec<usize>, Error> {
@@ -179,6 +183,120 @@ fn character_range(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn indexed_visual_line_boundaries(node: &NodeRef, boundary: u32) -> Vec<usize> {
+        let mut offsets = Vec::new();
+        let mut index = 0;
+        while let Some(line) = node.line_range_from_index(index) {
+            let position = if boundary == 5 {
+                line.start()
+            } else {
+                line.end()
+            };
+            offsets.push(position.to_global_usv_index());
+            if line.end().is_document_end() {
+                break;
+            }
+            index += 1;
+        }
+        offsets
+    }
+
+    #[test]
+    fn visual_line_boundaries_match_indexed_reference() {
+        let cases: &[&[(&str, bool)]] = &[
+            &[
+                ("é", false),
+                ("🙂", true),
+                ("wrapped", false),
+                (" end\n", true),
+                ("e\u{301}", false),
+            ],
+            &[
+                ("", false),
+                ("é", false),
+                ("", true),
+                ("🙂", true),
+                ("", false),
+                ("next", false),
+                ("", false),
+            ],
+            &[("", false)],
+            &[("", false), ("", false)],
+            &[("a\nb", false), ("🙂", false)],
+        ];
+        for runs in cases {
+            let tree = visual_line_tree(runs);
+            let node = tree.state().root();
+            let text = node.document_range().text();
+            for boundary in [5, 6] {
+                let mut expected = text_boundaries(&text, boundary).unwrap();
+                expected.extend(indexed_visual_line_boundaries(&node, boundary));
+                expected.sort_unstable();
+                expected.dedup();
+                let mut actual = text_boundaries(&text, boundary).unwrap();
+                actual.extend(visual_line_boundaries(&node, boundary));
+                actual.sort_unstable();
+                actual.dedup();
+                assert_eq!(actual, expected, "runs={runs:?}, boundary={boundary}");
+            }
+        }
+    }
+
+    fn visual_line_tree(runs: &[(&str, bool)]) -> accesskit_consumer::Tree {
+        use accesskit::{Node, NodeId, Role, TreeId, TreeInfo, TreeUpdate};
+        let mut input = Node::new(Role::MultilineTextInput);
+        input.set_children(
+            (1..=runs.len())
+                .map(|id| NodeId(id as u64))
+                .collect::<Vec<_>>(),
+        );
+        let mut nodes = vec![(NodeId(0), input)];
+        for (index, (value, same_line)) in runs.iter().enumerate() {
+            let mut run = Node::new(Role::TextRun);
+            run.set_value(*value);
+            run.set_character_lengths(
+                value
+                    .graphemes(true)
+                    .map(|grapheme| grapheme.len() as u8)
+                    .collect::<Vec<_>>(),
+            );
+            if *same_line {
+                run.set_previous_on_line(NodeId(index as u64));
+            }
+            if runs.get(index + 1).is_some_and(|(_, same_line)| *same_line) {
+                run.set_next_on_line(NodeId(index as u64 + 2));
+            }
+            nodes.push((NodeId(index as u64 + 1), run));
+        }
+        accesskit_consumer::Tree::new(
+            TreeUpdate {
+                nodes,
+                tree: Some(TreeInfo::new(NodeId(0))),
+                tree_id: TreeId::ROOT,
+                focus: NodeId(0),
+            },
+            true,
+        )
+    }
+
+    #[test]
+    fn visual_line_boundary_scaling() {
+        for size in [100, 1000, 5000] {
+            let tree = visual_line_tree(&vec![("é🙂", false); size]);
+            let node = tree.state().root();
+            let offset = size as i32;
+            for boundary in [5, 6] {
+                let start = std::time::Instant::now();
+                let result = text_at_boundary(&node, offset, boundary, 0).unwrap();
+                println!(
+                    "runs={size} boundary={boundary} elapsed={:?}",
+                    start.elapsed()
+                );
+                assert_eq!(result, ("é🙂".into(), offset, offset + 2));
+            }
+        }
+    }
 
     #[test]
     fn mixed_unicode_boundaries_scale_to_long_text() {
