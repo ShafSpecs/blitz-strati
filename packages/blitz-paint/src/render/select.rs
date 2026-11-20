@@ -53,8 +53,17 @@ impl ElementCx<'_, '_> {
             chevron.move_to((cx - w / 2.0, cy - h / 2.0));
             chevron.line_to((cx, cy + h / 2.0));
             chevron.line_to((cx + w / 2.0, cy - h / 2.0));
-            let stroke = Stroke::new(1.5 * self.scale).with_caps(Cap::Round).with_join(Join::Round);
-            scene.stroke(&stroke, self.transform, color, None, &chevron, anyrender::AntiAliasing::Enabled);
+            let stroke = Stroke::new(1.5 * self.scale)
+                .with_caps(Cap::Round)
+                .with_join(Join::Round);
+            scene.stroke(
+                &stroke,
+                self.transform,
+                color,
+                None,
+                &chevron,
+                anyrender::AntiAliasing::Enabled,
+            );
         }
     }
 }
@@ -69,7 +78,14 @@ impl BlitzDomPainter<'_, '_> {
         // Picker geometry is in CSS px, viewport coordinates.
         let to_device = Affine::translate((self.initial_x, self.initial_y)) * Affine::scale(scale);
 
-        scene.fill(Fill::NonZero, to_device, PICKER_BACKGROUND, None, &picker.rect, anyrender::AntiAliasing::Enabled);
+        scene.fill(
+            Fill::NonZero,
+            to_device,
+            PICKER_BACKGROUND,
+            None,
+            &picker.rect,
+            anyrender::AntiAliasing::Enabled,
+        );
         scene.push_clip_layer(Fill::NonZero, to_device, &picker.rect.inset(-1.0));
         for (i, row) in picker.rows.iter().enumerate() {
             let r = picker.row_rect(i);
@@ -78,7 +94,14 @@ impl BlitzDomPainter<'_, '_> {
             }
             let highlighted = picker.highlighted == Some(i);
             if highlighted {
-                scene.fill(Fill::NonZero, to_device, PICKER_HIGHLIGHT, None, &r, anyrender::AntiAliasing::Enabled);
+                scene.fill(
+                    Fill::NonZero,
+                    to_device,
+                    PICKER_HIGHLIGHT,
+                    None,
+                    &r,
+                    anyrender::AntiAliasing::Enabled,
+                );
             }
             let color = if highlighted {
                 PICKER_HIGHLIGHT_TEXT
@@ -101,6 +124,13 @@ impl BlitzDomPainter<'_, '_> {
         }
         scene.pop_layer();
         let border = picker.rect.inset(-0.5);
-        scene.stroke(&Stroke::new(1.0), to_device, PICKER_BORDER, None, &border, anyrender::AntiAliasing::Enabled);
+        scene.stroke(
+            &Stroke::new(1.0),
+            to_device,
+            PICKER_BORDER,
+            None,
+            &border,
+            anyrender::AntiAliasing::Enabled,
+        );
     }
 }

@@ -229,7 +229,14 @@ impl<'dom, 'a> BlitzDomPainter<'dom, 'a> {
                 (self.initial_x, self.initial_y),
                 (bg_width as f64, bg_height as f64),
             );
-            scene.fill(Fill::NonZero, Affine::IDENTITY, bg_color, None, &rect, anyrender::AntiAliasing::Enabled);
+            scene.fill(
+                Fill::NonZero,
+                Affine::IDENTITY,
+                bg_color,
+                None,
+                &rect,
+                anyrender::AntiAliasing::Enabled,
+            );
         }
 
         // The root clip rectangle is the viewport (in screen coordinates, with the
@@ -518,7 +525,8 @@ impl<'dom, 'a> BlitzDomPainter<'dom, 'a> {
                     filter_bounds = filter_bounds.union(*node.scrollable_overflow());
                 }
                 let filter = convert_filters(&effects.filter.0, filter_bounds).map(Arc::new);
-                let backdrop_filter = convert_filters(&effects.backdrop_filter.0, filter_bounds).map(Arc::new);
+                let backdrop_filter =
+                    convert_filters(&effects.backdrop_filter.0, filter_bounds).map(Arc::new);
 
                 // Adjust effect layer clip by filter expansion area
                 //
@@ -1011,7 +1019,14 @@ impl ElementCx<'_, '_> {
                 );
                 for (rect, _line_idx) in composed.geometry(layout) {
                     let line = kurbo::Rect::new(rect.x0, rect.y1 - thickness, rect.x1, rect.y1);
-                    scene.fill(Fill::NonZero, transform, color, None, &line, anyrender::AntiAliasing::Enabled);
+                    scene.fill(
+                        Fill::NonZero,
+                        transform,
+                        color,
+                        None,
+                        &line,
+                        anyrender::AntiAliasing::Enabled,
+                    );
                 }
             }
 
@@ -1350,7 +1365,14 @@ impl ElementCx<'_, '_> {
                 taffy::Display::None => Color::new([0.0, 0.0, 1.0, 1.0]),
             };
 
-            scene.stroke(&stroke, self.transform, stroke_color, None, &shape, anyrender::AntiAliasing::Enabled);
+            scene.stroke(
+                &stroke,
+                self.transform,
+                stroke_color,
+                None,
+                &shape,
+                anyrender::AntiAliasing::Enabled,
+            );
         }
     }
 }

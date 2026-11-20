@@ -478,7 +478,9 @@ impl LayoutPassState<'_> {
                     (margin_box_height.max(0.0) * scale).min(f32::MAX)
                 };
             }
-            inline_layout.layout.edit_inline_box(index, |target| *target = ibox);
+            inline_layout
+                .layout
+                .edit_inline_box(index, |target| *target = ibox);
         }
 
         let text_indent = self.nodes[node_id]

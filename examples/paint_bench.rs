@@ -265,11 +265,8 @@ async fn main() {
                     &mut image_cache,
                     &mut texture_bindings,
                 );
-                let mut painter = VelloGpuScenePainter::new(
-                    &mut scene,
-                    image_manager,
-                    &device_handle,
-                );
+                let mut painter =
+                    VelloGpuScenePainter::new(&mut scene, image_manager, &device_handle);
                 painter.reset();
                 paint_scene(
                     &mut painter,
