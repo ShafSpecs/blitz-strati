@@ -63,6 +63,7 @@ fn render_to_buffer(ctx: &mut ThreadCtx, document: &mut BaseDocument) {
                 Color::WHITE,
                 Default::default(),
                 &Rect::new(0.0, 0.0, WIDTH as f64, HEIGHT as f64),
+                anyrender::AntiAliasing::Enabled,
             );
 
             paint_scene(scene, document, SCALE, WIDTH, HEIGHT, 0, 0);

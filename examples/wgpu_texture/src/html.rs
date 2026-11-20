@@ -17,10 +17,10 @@ fn create_renderer() -> anyrender_vello::VelloWindowRenderer {
 
 #[cfg(feature = "vello-hybrid")]
 /// Create renderer
-fn create_renderer() -> anyrender_vello_hybrid::VelloHybridWindowRenderer {
-    use anyrender_vello_hybrid::{VelloHybridRendererOptions, VelloHybridWindowRenderer};
-    VelloHybridWindowRenderer::with_options(
-        VelloHybridRendererOptions::default()
+fn create_renderer() -> anyrender_vello_gpu::VelloGpuWindowRenderer {
+    use anyrender_vello_gpu::{VelloGpuRendererOptions, VelloGpuWindowRenderer};
+    VelloGpuWindowRenderer::with_options(
+        VelloGpuRendererOptions::default()
             .features(FEATURES)
             .limits(limits()),
     )

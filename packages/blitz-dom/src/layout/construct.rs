@@ -976,8 +976,8 @@ fn build_placeholder_layout(
     builder.push_default(StyleProperty::LetterSpacing(parley_style.letter_spacing));
     builder.push_default(StyleProperty::Brush(parley_style.brush));
     let mut layout = builder.build(&text);
+    layout.set_alignment(alignment, Default::default());
     layout.break_all_lines(None);
-    layout.align(alignment, Default::default());
     Some(PlaceholderLayout { layout, color })
 }
 

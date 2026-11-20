@@ -62,7 +62,7 @@ pub(crate) fn draw_inline_backgrounds<'a>(
             let y1 = baseline + metrics.descent as f64;
             let rect = Rect::new(x, y0, x + w, y1);
 
-            scene.fill(Fill::NonZero, transform, bg_color, None, &rect);
+            scene.fill(Fill::NonZero, transform, bg_color, None, &rect, anyrender::AntiAliasing::Enabled);
         }
     }
 }
@@ -318,7 +318,7 @@ fn draw_decoration_line(
         // `solid`
         TextDecorationStyle::Solid => {
             let line = kurbo::Line::new((x, y), (x + w, y));
-            scene.stroke(&butt_stroke, transform, brush, None, &line);
+            scene.stroke(&butt_stroke, transform, brush, None, &line, anyrender::AntiAliasing::Enabled);
         }
         // Two lines, each `size` thick, separated by a 1px (CSS) gap. This
         // matches Chrome, where the second line is offset by `thickness + 1px`
@@ -328,7 +328,7 @@ fn draw_decoration_line(
             let one_css_px = scale;
             for cy in [y, y + double_dir * (size + one_css_px)] {
                 let line = kurbo::Line::new((x, cy), (x + w, cy));
-                scene.stroke(&butt_stroke, transform, brush, None, &line);
+                scene.stroke(&butt_stroke, transform, brush, None, &line, anyrender::AntiAliasing::Enabled);
             }
         }
         // Round dots (diameter = line thickness) spaced one dot apart.
@@ -338,7 +338,7 @@ fn draw_decoration_line(
             let mut cx = x + radius;
             while cx <= x + w - radius {
                 let dot = Circle::new((cx, y), radius);
-                scene.fill(Fill::NonZero, transform, brush, None, &dot);
+                scene.fill(Fill::NonZero, transform, brush, None, &dot, anyrender::AntiAliasing::Enabled);
                 cx += step;
             }
         }
@@ -359,7 +359,7 @@ fn draw_decoration_line(
             while dx < x + w {
                 let end = (dx + dash).min(x + w);
                 let rect = Rect::new(dx, y - size / 2.0, end, y + size / 2.0);
-                scene.fill(Fill::NonZero, transform, brush, None, &rect);
+                scene.fill(Fill::NonZero, transform, brush, None, &rect, anyrender::AntiAliasing::Enabled);
                 dx += dash + gap;
             }
         }
@@ -385,7 +385,7 @@ fn draw_decoration_line(
                 up = !up;
             }
             let stroke = Stroke::new(size).with_caps(Cap::Round);
-            scene.stroke(&stroke, transform, brush, None, &path);
+            scene.stroke(&stroke, transform, brush, None, &path, anyrender::AntiAliasing::Enabled);
         }
     }
 }
@@ -605,6 +605,7 @@ pub(crate) fn fill_text_in_color<'a>(
                     x: glyph.x,
                     y: glyph.y,
                 }),
+                anyrender::AntiAliasing::Enabled,
             );
         }
     }
@@ -709,6 +710,7 @@ pub(crate) fn stroke_text<'a>(
                         x: glyph.x,
                         y: glyph.y,
                     }),
+                    anyrender::AntiAliasing::Enabled,
                 );
 
                 // Accumulate this run's contribution to each decorating box on its ancestor
@@ -790,6 +792,6 @@ pub(crate) fn draw_text_selection(
 
     selection.geometry_with(layout, |rect, _line_idx| {
         let rect = kurbo::Rect::new(rect.x0, rect.y0, rect.x1, rect.y1);
-        scene.fill(Fill::NonZero, transform, SELECTION_COLOR, None, &rect);
+        scene.fill(Fill::NonZero, transform, SELECTION_COLOR, None, &rect, anyrender::AntiAliasing::Enabled);
     });
 }

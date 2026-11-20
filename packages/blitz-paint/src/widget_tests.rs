@@ -52,7 +52,7 @@ impl Widget for Record {
     fn paint(&mut self, _: &mut dyn anyrender::RenderContext, _: &ComputedStyles, width: u32, height: u32, scale: f64) -> Scene {
         self.0.borrow_mut().push((width, height, scale));
         let mut scene = Scene::new();
-        scene.fill(Fill::NonZero, Affine::IDENTITY, Color::from_rgb8(1, 2, 3), None, &Rect::new(0.0, 0.0, width as f64, height as f64));
+        scene.fill(Fill::NonZero, Affine::IDENTITY, Color::from_rgb8(1, 2, 3), None, &Rect::new(0.0, 0.0, width as f64, height as f64), anyrender::AntiAliasing::Enabled);
         scene
     }
 }

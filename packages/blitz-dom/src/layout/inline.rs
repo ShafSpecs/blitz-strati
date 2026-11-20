@@ -396,7 +396,8 @@ impl LayoutPassState<'_> {
         };
 
         // Update inline boxes
-        for ibox in inline_layout.layout.inline_boxes_mut() {
+        let inline_boxes: Vec<_> = inline_layout.layout.inline_boxes().cloned().collect();
+        for (index, mut ibox) in inline_boxes.into_iter().enumerate() {
             let style = self.child_layout_style(&self.nodes[NodeId::from_u64(ibox.id)]);
             let margin = style
                 .margin()
@@ -477,6 +478,7 @@ impl LayoutPassState<'_> {
                     (margin_box_height.max(0.0) * scale).min(f32::MAX)
                 };
             }
+            inline_layout.layout.edit_inline_box(index, |target| *target = ibox);
         }
 
         let text_indent = self.nodes[node_id]
@@ -512,7 +514,7 @@ impl LayoutPassState<'_> {
                     AvailableSpace::Definite(_) => 0.0,
                     AvailableSpace::MinContent => {
                         let mut width: f32 = 0.0;
-                        for ibox in inline_layout.layout.inline_boxes_mut() {
+                        for ibox in inline_layout.layout.inline_boxes() {
                             let (is_floated, margin) = {
                                 let style =
                                     self.child_layout_style(&self.nodes[NodeId::from_u64(ibox.id)]);
@@ -547,7 +549,7 @@ impl LayoutPassState<'_> {
                         let mut left_band: f32 = 0.0;
                         let mut right_band: f32 = 0.0;
                         let mut width: f32 = 0.0;
-                        for ibox in inline_layout.layout.inline_boxes_mut() {
+                        for ibox in inline_layout.layout.inline_boxes() {
                             let (float, clear, margin) = {
                                 let style =
                                     self.child_layout_style(&self.nodes[NodeId::from_u64(ibox.id)]);
@@ -628,6 +630,24 @@ impl LayoutPassState<'_> {
         let mut block_ctx =
             outer_block_ctx.sub_context(container_pb.top, [container_pb.left, container_pb.right]);
         // block_ctx.apply_content_box_inset([container_pb.left, container_pb.right]);
+
+        let (alignment, last_line_alignment) = self.nodes[node_id]
+            .primary_styles()
+            .map(|s| {
+                (
+                    stylo_to_parley::text_align(s.clone_text_align()),
+                    stylo_to_parley::text_align_last(s.clone_text_align_last()),
+                )
+            })
+            .unwrap_or((parley::layout::Alignment::Start, None));
+
+        inline_layout.layout.set_alignment(
+            alignment,
+            AlignmentOptions {
+                align_when_overflowing: false,
+                last_line_alignment,
+            },
+        );
 
         if inputs.run_mode == taffy::RunMode::ComputeSize
             && inputs.axis == RequestedAxis::Horizontal
@@ -812,24 +832,6 @@ impl LayoutPassState<'_> {
         #[cfg(feature = "floats")]
         outer_block_ctx.add_child_floated_content_height_contribution(
             container_pb.top + float_height_contribution,
-        );
-
-        let (alignment, last_line_alignment) = self.nodes[node_id]
-            .primary_styles()
-            .map(|s| {
-                (
-                    stylo_to_parley::text_align(s.clone_text_align()),
-                    stylo_to_parley::text_align_last(s.clone_text_align_last()),
-                )
-            })
-            .unwrap_or((parley::layout::Alignment::Start, None));
-
-        inline_layout.layout.align(
-            alignment,
-            AlignmentOptions {
-                align_when_overflowing: false,
-                last_line_alignment,
-            },
         );
 
         // Parley lays out empty text as a single strut-height line (text-editor semantics),

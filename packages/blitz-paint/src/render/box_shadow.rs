@@ -70,6 +70,7 @@ impl ElementCx<'_, '_> {
                                 shadow_color,
                                 None,
                                 &self.frame.border_box_path(),
+                                anyrender::AntiAliasing::Enabled,
                             );
                             continue;
                         }
@@ -79,7 +80,15 @@ impl ElementCx<'_, '_> {
                         let rect = self.frame.border_box.inflate(spread, spread);
 
                         // Fill the color
-                        scene.draw_box_shadow(transform, rect, shadow_color, radius, blur);
+                        scene.draw_box_shadow(
+                            transform,
+                            &kurbo::RoundedRect::from_rect(rect, radius).into(),
+                            Vec2::ZERO,
+                            0.0,
+                            blur,
+                            shadow_color,
+                            anyrender::BoxShadowKind::OutsetUnclipped,
+                        );
                     }
                 }
             },
@@ -128,6 +137,7 @@ impl ElementCx<'_, '_> {
                 shadow_color,
                 None,
                 &padding_box,
+                anyrender::AntiAliasing::Enabled,
             );
 
             scene.push_layer(
@@ -144,10 +154,12 @@ impl ElementCx<'_, '_> {
             let hole = self.frame.padding_box.inflate(-spread, -spread);
             scene.draw_box_shadow(
                 transform,
-                hole,
-                Color::WHITE,
-                radius,
+                &kurbo::RoundedRect::from_rect(hole, radius).into(),
+                Vec2::ZERO,
+                0.0,
                 shadow.base.blur.px() as f64 * self.scale,
+                Color::WHITE,
+                anyrender::BoxShadowKind::OutsetUnclipped,
             );
 
             scene.pop_layer();
