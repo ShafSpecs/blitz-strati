@@ -163,6 +163,7 @@ impl Widget for DemoWidget {
             self.color.clone(),
             None,
             &Rect::from_origin_size((0.0, 0.0), (w, h)),
+            anyrender::AntiAliasing::Enabled,
         );
 
         scene

@@ -28,17 +28,24 @@ pub struct RangeState {
 }
 
 fn decimals(s: Option<&str>) -> usize {
-    s.and_then(|s| s.trim().split_once('.')).map_or(0, |(_, f)| f.trim_end_matches('0').len())
+    s.and_then(|s| s.trim().split_once('.'))
+        .map_or(0, |(_, f)| f.trim_end_matches('0').len())
 }
 
 impl RangeState {
     pub fn of(el: &ElementData) -> Option<Self> {
         if el.name.local != local_name!("input")
-            || !el.attr(local_name!("type")).is_some_and(|t| t.eq_ignore_ascii_case("range"))
+            || !el
+                .attr(local_name!("type"))
+                .is_some_and(|t| t.eq_ignore_ascii_case("range"))
         {
             return None;
         }
-        let num = |name| el.attr(name).and_then(|v: &str| v.trim().parse::<f64>().ok()).filter(|v| v.is_finite());
+        let num = |name| {
+            el.attr(name)
+                .and_then(|v: &str| v.trim().parse::<f64>().ok())
+                .filter(|v| v.is_finite())
+        };
         let min = num(local_name!("min")).unwrap_or(0.0);
         // A maximum below the minimum is the minimum.
         let max = num(local_name!("max")).unwrap_or(100.0).max(min);
@@ -47,8 +54,16 @@ impl RangeState {
             Some(s) if s.trim().eq_ignore_ascii_case("any") => None,
             _ => Some(num(local_name!("step")).filter(|s| *s > 0.0).unwrap_or(1.0)),
         };
-        let decimals = decimals(el.attr(local_name!("min"))).max(decimals(step_attr)).min(12);
-        let mut state = RangeState { min, max, step, value: min, decimals };
+        let decimals = decimals(el.attr(local_name!("min")))
+            .max(decimals(step_attr))
+            .min(12);
+        let mut state = RangeState {
+            min,
+            max,
+            step,
+            value: min,
+            decimals,
+        };
         // The default value is the midpoint.
         let raw = num(local_name!("value")).unwrap_or(min + (max - min) / 2.0);
         state.value = state.sanitize(raw);
@@ -74,13 +89,21 @@ impl RangeState {
     /// The value as the input event and the attribute carry it.
     pub fn format(&self, v: f64) -> String {
         let s = format!("{:.*}", self.decimals, v);
-        let s = if s.contains('.') { s.trim_end_matches('0').trim_end_matches('.').to_owned() } else { s };
+        let s = if s.contains('.') {
+            s.trim_end_matches('0').trim_end_matches('.').to_owned()
+        } else {
+            s
+        };
         if s == "-0" { "0".to_owned() } else { s }
     }
 
     /// Where the value sits along the track, 0..=1.
     pub fn fraction(&self) -> f64 {
-        if self.max > self.min { (self.value - self.min) / (self.max - self.min) } else { 0.0 }
+        if self.max > self.min {
+            (self.value - self.min) / (self.max - self.min)
+        } else {
+            0.0
+        }
     }
 
     /// The value at a fraction 0..=1 of the track.
@@ -102,20 +125,31 @@ impl RangeState {
 impl BaseDocument {
     /// Sets a range input's value (sanitized) and fires `input` when it
     /// changed. Returns whether it changed.
-    pub(crate) fn set_range_value(&mut self, node_id: NodeId, value: f64, dispatch_event: &mut dyn FnMut(DomEvent)) -> bool {
+    pub(crate) fn set_range_value(
+        &mut self,
+        node_id: NodeId,
+        value: f64,
+        dispatch_event: &mut dyn FnMut(DomEvent),
+    ) -> bool {
         let Some(state) = self.nodes[node_id].element_data().and_then(RangeState::of) else {
             return false;
         };
         let new = state.sanitize(value);
-        let current = self.nodes[node_id].element_data().and_then(|el| el.attr(local_name!("value")).map(str::to_owned));
+        let current = self.nodes[node_id]
+            .element_data()
+            .and_then(|el| el.attr(local_name!("value")).map(str::to_owned));
         let text = state.format(new);
         if new == state.value && current.as_deref() == Some(text.as_str()) {
             return false;
         }
         // Attributes are in no namespace (as the parser creates them).
-        self.mutate().set_attribute(node_id, qual_name!("value"), &text);
+        self.mutate()
+            .set_attribute(node_id, qual_name!("value"), &text);
         self.shell_provider.request_redraw();
-        dispatch_event(DomEvent::new(node_id, DomEventData::Input(BlitzInputEvent { value: text })));
+        dispatch_event(DomEvent::new(
+            node_id,
+            DomEventData::Input(BlitzInputEvent { value: text }),
+        ));
         true
     }
 
@@ -124,7 +158,8 @@ impl BaseDocument {
         let node = &self.nodes[node_id];
         let state = node.element_data().and_then(RangeState::of)?;
         let layout = node.final_layout();
-        let left = node.absolute_position(0.0, 0.0).x as f64 + (layout.border.left + layout.padding.left) as f64;
+        let left = node.absolute_position(0.0, 0.0).x as f64
+            + (layout.border.left + layout.padding.left) as f64;
         let width = layout.content_box_width() as f64;
         let travel = (width - THUMB_SIZE).max(1.0);
         Some(state.at_fraction((page_x as f64 - left - THUMB_SIZE / 2.0) / travel))
@@ -136,7 +171,13 @@ mod tests {
     use super::*;
 
     fn state(min: f64, max: f64, step: Option<f64>, decimals: usize) -> RangeState {
-        RangeState { min, max, step, value: min, decimals }
+        RangeState {
+            min,
+            max,
+            step,
+            value: min,
+            decimals,
+        }
     }
 
     #[test]

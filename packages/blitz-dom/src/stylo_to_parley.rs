@@ -499,6 +499,7 @@ pub(crate) fn style(
         letter_spacing,
         text_wrap_mode,
         white_space_collapse: white_space_collapse(itext_styles.white_space_collapse),
+        collapsed_space: Default::default(),
         overflow_wrap,
         word_break,
         line_break,

@@ -474,7 +474,9 @@ pub(crate) fn handle_pointerdown(
     // A drop-down select: a press focuses it and opens (or closes) its picker.
     if button == MouseEventButton::Main
         && let Some(select) = doc.drop_down_select_of(actual_target)
-        && !doc.nodes[select].element_data().is_some_and(|el| el.has_attr(local_name!("disabled")))
+        && !doc.nodes[select]
+            .element_data()
+            .is_some_and(|el| el.has_attr(local_name!("disabled")))
     {
         doc.clear_text_selection();
         generate_focus_events(
@@ -934,12 +936,7 @@ pub(crate) fn handle_wheel<F: FnMut(DomEvent)>(
 
     // Scroll from the element the wheel turned over (the event's target),
     // not whatever hover state says.
-    let has_changed = doc.scroll_chain_by(
-        Some(target),
-        scroll_x,
-        scroll_y,
-        &mut dispatch_event,
-    );
+    let has_changed = doc.scroll_chain_by(Some(target), scroll_x, scroll_y, &mut dispatch_event);
     if has_changed {
         doc.shell_provider.request_redraw();
     }

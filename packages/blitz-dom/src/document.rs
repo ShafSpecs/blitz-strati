@@ -2437,8 +2437,12 @@ impl BaseDocument {
             kurbo::Point::new(size.width as f64, size.height as f64),
         ];
         self.map_to_document(node_id, &mut pts);
-        let (x0, x1) = pts.iter().fold((f64::MAX, f64::MIN), |(lo, hi), p| (lo.min(p.x), hi.max(p.x)));
-        let (y0, y1) = pts.iter().fold((f64::MAX, f64::MIN), |(lo, hi), p| (lo.min(p.y), hi.max(p.y)));
+        let (x0, x1) = pts.iter().fold((f64::MAX, f64::MIN), |(lo, hi), p| {
+            (lo.min(p.x), hi.max(p.x))
+        });
+        let (y0, y1) = pts.iter().fold((f64::MAX, f64::MIN), |(lo, hi), p| {
+            (lo.min(p.y), hi.max(p.y))
+        });
         Some(BoundingRect {
             x: snap_to_layout_unit(x0 - self.viewport_scroll().x),
             y: snap_to_layout_unit(y0 - self.viewport_scroll().y),
@@ -2459,7 +2463,8 @@ impl BaseDocument {
         let mut current = Some(node_id);
         while let Some(id) = current {
             let node = &self.nodes[id];
-            fixed |= node.taffy_position() == taffy::Position::Fixed && node.containing_block() == Some(root);
+            fixed |= node.taffy_position() == taffy::Position::Fixed
+                && node.containing_block() == Some(root);
             if let Some(t) = node.transform().as_deref() {
                 // Stored for device pixels (translation scaled): apply in CSS px.
                 let [a, b, c, d, e, f] = t.as_coeffs();
@@ -2470,7 +2475,9 @@ impl BaseDocument {
             }
             let loc = node.unrounded_layout().location;
             current = node.containing_block();
-            let scroll = current.map(|p| *self.nodes[p].scroll_offset()).unwrap_or(crate::util::Point { x: 0.0, y: 0.0 });
+            let scroll = current
+                .map(|p| *self.nodes[p].scroll_offset())
+                .unwrap_or(crate::util::Point { x: 0.0, y: 0.0 });
             for p in pts.iter_mut() {
                 p.x += loc.x as f64 - scroll.x;
                 p.y += loc.y as f64 - scroll.y;
@@ -3288,22 +3295,34 @@ mod hover_invalidation_tests {
         };
         let mut mutator = doc.mutate();
         let html = mutator.create_element(qual_name!("html", html), vec![]);
-        let body = mutator.create_element(qual_name!("body", html), vec![attr(qual_name!("style"), "margin:0")]);
+        let body = mutator.create_element(
+            qual_name!("body", html),
+            vec![attr(qual_name!("style"), "margin:0")],
+        );
         // A flex row: box sizing only, independent of inline (font) layout.
         let row = mutator.create_element(
             qual_name!("div", html),
-            vec![attr(qual_name!("style"), "display:flex;align-items:flex-start")],
+            vec![attr(
+                qual_name!("style"),
+                "display:flex;align-items:flex-start",
+            )],
         );
         let mut inputs = Vec::new();
         for (ty, style) in [
             ("checkbox", ""),
             ("radio", ""),
-            ("checkbox", "appearance:none;width:18px;height:18px;border:2px solid black"),
+            (
+                "checkbox",
+                "appearance:none;width:18px;height:18px;border:2px solid black",
+            ),
             ("radio", "width:18px;height:18px;border:2px solid black"),
         ] {
             let input = mutator.create_element(
                 qual_name!("input", html),
-                vec![attr(qual_name!("type"), ty), attr(qual_name!("style"), style)],
+                vec![
+                    attr(qual_name!("type"), ty),
+                    attr(qual_name!("style"), style),
+                ],
             );
             inputs.push(input);
         }
@@ -3324,10 +3343,24 @@ mod hover_invalidation_tests {
         assert_eq!(size(inputs[3]), (18.0, 18.0, 0.0, 2.0), "styled radio");
 
         // The native control is drawn unless the author opts out.
-        let appearance = |id: NodeId| doc.nodes[id].primary_styles().unwrap().get_box().clone_appearance();
+        let appearance = |id: NodeId| {
+            doc.nodes[id]
+                .primary_styles()
+                .unwrap()
+                .get_box()
+                .clone_appearance()
+        };
         use style::values::specified::box_::Appearance;
-        assert_ne!(appearance(inputs[0]), Appearance::None, "default checkbox draws its control");
-        assert_ne!(appearance(inputs[3]), Appearance::None, "a sized radio still draws its control");
+        assert_ne!(
+            appearance(inputs[0]),
+            Appearance::None,
+            "default checkbox draws its control"
+        );
+        assert_ne!(
+            appearance(inputs[3]),
+            Appearance::None,
+            "a sized radio still draws its control"
+        );
         assert_eq!(appearance(inputs[2]), Appearance::None, "appearance: none");
     }
 

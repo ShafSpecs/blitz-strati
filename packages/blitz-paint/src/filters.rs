@@ -4,13 +4,14 @@ pub(crate) use style::computed_values::filter::single_value::T as StyloFilter;
 
 use anyrender::filters::{Filter, FilterEffect};
 
-pub(crate) fn convert_filters(filters: &[StyloFilter]) -> Option<Filter> {
+pub(crate) fn convert_filters(filters: &[StyloFilter], bounds: kurbo::Rect) -> Option<Filter> {
     if filters.is_empty() {
         return None;
     }
 
     Some(Filter::linear_list(
         filters.iter().filter_map(convert_single_filter),
+        bounds,
     ))
 }
 

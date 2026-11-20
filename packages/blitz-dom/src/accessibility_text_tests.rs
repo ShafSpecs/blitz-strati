@@ -32,22 +32,52 @@ fn textarea_text_runs_follow_live_value_without_initial_dom_text() {
                 target_node: NodeId(textarea.as_u64()),
                 data: Some(ActionData::Value(value.into())),
             };
-            assert!(EventDriver::new(&mut doc, NoopEventHandler).handle_accessibility_action(&request));
+            assert!(
+                EventDriver::new(&mut doc, NoopEventHandler).handle_accessibility_action(&request)
+            );
         }
         let tree = doc.build_accessibility_tree();
-        let input = &tree.nodes.iter().find(|(id, _)| id.0 == textarea.as_u64()).unwrap().1;
+        let input = &tree
+            .nodes
+            .iter()
+            .find(|(id, _)| id.0 == textarea.as_u64())
+            .unwrap()
+            .1;
         assert_eq!(input.value(), Some(value));
-        let editor = &doc.get_node(textarea).unwrap().element_data().unwrap().text_input_data().unwrap().editor;
-        let selection = input.text_selection().expect("text input exposes its real caret");
+        let editor = &doc
+            .get_node(textarea)
+            .unwrap()
+            .element_data()
+            .unwrap()
+            .text_input_data()
+            .unwrap()
+            .editor;
+        let selection = input
+            .text_selection()
+            .expect("text input exposes its real caret");
         assert_eq!(selection.focus.node, input.children()[0]);
         assert_eq!(selection.anchor.node, input.children()[0]);
-        assert_eq!(selection.focus.character_index, value[..editor.raw_selection().focus().index()].graphemes(true).count());
-        assert_eq!(selection.anchor.character_index, value[..editor.raw_selection().anchor().index()].graphemes(true).count());
-        let runs: Vec<_> = input.children().iter().map(|child| {
-            let run = &tree.nodes.iter().find(|(id, _)| id == child).unwrap().1;
-            assert_eq!(run.role(), Role::TextRun);
-            run.value().unwrap().to_owned()
-        }).collect();
+        assert_eq!(
+            selection.focus.character_index,
+            value[..editor.raw_selection().focus().index()]
+                .graphemes(true)
+                .count()
+        );
+        assert_eq!(
+            selection.anchor.character_index,
+            value[..editor.raw_selection().anchor().index()]
+                .graphemes(true)
+                .count()
+        );
+        let runs: Vec<_> = input
+            .children()
+            .iter()
+            .map(|child| {
+                let run = &tree.nodes.iter().find(|(id, _)| id == child).unwrap().1;
+                assert_eq!(run.role(), Role::TextRun);
+                run.value().unwrap().to_owned()
+            })
+            .collect();
         observed.push(runs);
     }
     assert_eq!(observed, vec![vec!["init"], vec!["edited🙂"], vec![""]]);
@@ -69,7 +99,13 @@ fn input_text_runs_cover_unicode_empty_and_masked_values() {
         assert_eq!(nodes[0].1.children(), &[*run_id]);
         assert_eq!(run.role(), Role::TextRun);
         assert_eq!(run.value(), Some(value));
-        assert_eq!(run.character_lengths().iter().map(|n| *n as usize).sum::<usize>(), value.len());
+        assert_eq!(
+            run.character_lengths()
+                .iter()
+                .map(|n| *n as usize)
+                .sum::<usize>(),
+            value.len()
+        );
     }
 }
 
@@ -101,6 +137,9 @@ fn character_lengths_preserve_graphemes_and_long_clusters() {
     assert!(text_character_lengths("").is_empty());
     let long_cluster = "e".to_owned() + &"\u{301}".repeat(200);
     let lengths = text_character_lengths(&long_cluster);
-    assert_eq!(lengths.iter().map(|n| *n as usize).sum::<usize>(), long_cluster.len());
+    assert_eq!(
+        lengths.iter().map(|n| *n as usize).sum::<usize>(),
+        long_cluster.len()
+    );
     assert!(lengths.iter().all(|n| *n > 0));
 }

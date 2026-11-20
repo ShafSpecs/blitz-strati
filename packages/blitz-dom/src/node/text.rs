@@ -3,9 +3,9 @@ use blitz_traits::{
     node_id::NodeId,
     shell::ShellProvider,
 };
-use unicode_segmentation::UnicodeSegmentation;
 use keyboard_types::{Key, Modifiers, NamedKey};
 use parley::{ContentWidths, FontContext, LayoutContext};
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::util::ACTION_MOD;
 
@@ -121,7 +121,8 @@ impl EditHistory {
             if self.undo.len() >= MAX_UNDO {
                 self.undo.remove(0);
             }
-            self.undo.push((editor.raw_text().to_owned(), editor.raw_selection().clone()));
+            self.undo
+                .push((editor.raw_text().to_owned(), *editor.raw_selection()));
         }
         self.redo.clear();
         self.group = (kind != EditKind::Other).then_some(kind);
@@ -182,7 +183,12 @@ impl TextInputData {
 
     /// Masks the text (the field became a password field) or shows it,
     /// keeping the caret.
-    pub fn set_masked(&mut self, font_ctx: &mut FontContext, layout_ctx: &mut LayoutContext<TextBrush>, masked: bool) {
+    pub fn set_masked(
+        &mut self,
+        font_ctx: &mut FontContext,
+        layout_ctx: &mut LayoutContext<TextBrush>,
+        masked: bool,
+    ) {
         if masked == self.password.is_some() {
             return;
         }
@@ -195,7 +201,10 @@ impl TextInputData {
             self.remask(font_ctx, layout_ctx, at);
         } else {
             let text = self.password.take().unwrap_or_default();
-            let at = text.grapheme_indices(true).nth(caret / MASK.len_utf8()).map_or(text.len(), |(i, _)| i);
+            let at = text
+                .grapheme_indices(true)
+                .nth(caret / MASK.len_utf8())
+                .map_or(text.len(), |(i, _)| i);
             self.editor.set_text(&text);
             let mut driver = self.editor.driver(font_ctx, layout_ctx);
             driver.refresh_layout();
@@ -205,7 +214,12 @@ impl TextInputData {
 
     /// Shows a bullet per grapheme of the password, the caret after `caret`
     /// graphemes.
-    fn remask(&mut self, font_ctx: &mut FontContext, layout_ctx: &mut LayoutContext<TextBrush>, caret: usize) {
+    fn remask(
+        &mut self,
+        font_ctx: &mut FontContext,
+        layout_ctx: &mut LayoutContext<TextBrush>,
+        caret: usize,
+    ) {
         let bullets = masked(self.password.as_deref().unwrap_or_default());
         let n = bullets.chars().count();
         self.editor.set_text(&bullets);
@@ -218,7 +232,12 @@ impl TextInputData {
     /// is the bullet count and the selection's start before it. An edit
     /// replaces bullets from where it starts and leaves the caret after what
     /// it inserted, so the removed graphemes and the inserted text follow.
-    fn unmask_edit(&mut self, font_ctx: &mut FontContext, layout_ctx: &mut LayoutContext<TextBrush>, before: (usize, usize)) {
+    fn unmask_edit(
+        &mut self,
+        font_ctx: &mut FontContext,
+        layout_ctx: &mut LayoutContext<TextBrush>,
+        before: (usize, usize),
+    ) {
         let Some(value) = self.password.as_mut() else {
             return;
         };
@@ -420,7 +439,8 @@ impl TextInputData {
                 self.editor.raw_text().chars().count(),
                 self.editor.raw_selection().text_range().start / MASK.len_utf8(),
             );
-            let generated = self.apply_editing_key(font_ctx, layout_ctx, shell_provider, event, is_multiline);
+            let generated =
+                self.apply_editing_key(font_ctx, layout_ctx, shell_provider, event, is_multiline);
             if matches!(generated, Some(GeneratedTextInputEvent::Input)) {
                 self.unmask_edit(font_ctx, layout_ctx, before);
             }
@@ -436,12 +456,21 @@ impl TextInputData {
             let (from, to) = match (c.as_str(), shift) {
                 ("z", false) => (&mut self.history.undo, &mut self.history.redo),
                 ("z", true) | ("y", false) => (&mut self.history.redo, &mut self.history.undo),
-                _ => return self.apply_editing_key(font_ctx, layout_ctx, shell_provider, event, is_multiline),
+                _ => {
+                    return self.apply_editing_key(
+                        font_ctx,
+                        layout_ctx,
+                        shell_provider,
+                        event,
+                        is_multiline,
+                    );
+                }
             };
-            let Some((text, selection)) = from.pop() else {
-                return None;
-            };
-            to.push((self.editor.raw_text().to_owned(), self.editor.raw_selection().clone()));
+            let (text, selection) = from.pop()?;
+            to.push((
+                self.editor.raw_text().to_owned(),
+                *self.editor.raw_selection(),
+            ));
             self.history.group = None;
             self.editor.set_text(&text);
             let mut driver = self.editor.driver(font_ctx, layout_ctx);
@@ -465,13 +494,29 @@ impl TextInputData {
         let action_mod = mods.contains(ACTION_MOD);
 
         // Which kind of edit the key makes (for undo grouping), if any.
+        #[expect(
+            deprecated,
+            reason = "Modifiers::SUPER is legacy but still set by platforms for the Super key"
+        )]
         let kind = match &event.key {
-            Key::Character(c) if action_mod && matches!(c.to_lowercase().as_str(), "x" | "v") => Some(EditKind::Other),
-            Key::Character(c) if c == "
-" => is_multiline.then_some(EditKind::Other),
+            Key::Character(c) if action_mod && matches!(c.to_lowercase().as_str(), "x" | "v") => {
+                Some(EditKind::Other)
+            }
+            Key::Character(c)
+                if c == "
+" =>
+            {
+                is_multiline.then_some(EditKind::Other)
+            }
             Key::Named(NamedKey::Enter) => is_multiline.then_some(EditKind::Other),
-            Key::Named(NamedKey::Delete) | Key::Named(NamedKey::Backspace) => Some(EditKind::Deleting),
-            Key::Character(_) if !mods.contains(Modifiers::CONTROL) && !mods.contains(Modifiers::SUPER) => Some(EditKind::Typing),
+            Key::Named(NamedKey::Delete) | Key::Named(NamedKey::Backspace) => {
+                Some(EditKind::Deleting)
+            }
+            Key::Character(_)
+                if !mods.contains(Modifiers::CONTROL) && !mods.contains(Modifiers::SUPER) =>
+            {
+                Some(EditKind::Typing)
+            }
             _ => None,
         };
         match kind {
@@ -1046,7 +1091,11 @@ impl TextInputData {
                 // and the page told the text changed.
                 let had_preedit = driver.editor.is_composing();
                 driver.clear_compose();
-                Some(if had_preedit { GeneratedTextInputEvent::Input } else { GeneratedTextInputEvent::PreEditChange })
+                Some(if had_preedit {
+                    GeneratedTextInputEvent::Input
+                } else {
+                    GeneratedTextInputEvent::PreEditChange
+                })
             }
             BlitzImeEvent::Commit(text) => {
                 driver.insert_or_replace_selection(&text);

@@ -13,6 +13,7 @@
 //! pixel), except that border widths are rounded as widths rather than by
 //! the position of their edges (they're already device-pixel snapped).
 
+#[cfg(not(feature = "writing-mode"))]
 use taffy::{Layout, NodeId, RoundTree};
 
 /// Round `v` (CSS px) to the nearest device pixel, returned in CSS px.
@@ -21,12 +22,24 @@ pub(crate) fn round_to_device(v: f32, scale: f32) -> f32 {
     (v * scale).round() / scale
 }
 
+#[cfg(not(feature = "writing-mode"))]
 pub(crate) fn round_layout_to_device_pixels(tree: &mut impl RoundTree, root: NodeId, scale: f32) {
-    let scale = if scale.is_finite() && scale > 0.0 { scale } else { 1.0 };
+    let scale = if scale.is_finite() && scale > 0.0 {
+        scale
+    } else {
+        1.0
+    };
     round_inner(tree, root, 0.0, 0.0, scale);
 }
 
-fn round_inner(tree: &mut impl RoundTree, node_id: NodeId, parent_x: f32, parent_y: f32, scale: f32) {
+#[cfg(not(feature = "writing-mode"))]
+fn round_inner(
+    tree: &mut impl RoundTree,
+    node_id: NodeId,
+    parent_x: f32,
+    parent_y: f32,
+    scale: f32,
+) {
     let round = |v: f32| round_to_device(v, scale);
     let unrounded = tree.get_unrounded_layout(node_id);
     let mut layout: Layout = unrounded;
@@ -98,7 +111,10 @@ mod tests {
             by_position_lost_it |= by_position == 0.0;
             assert!((round_to_device(border, scale) * scale - 1.0).abs() < 1e-4);
         }
-        assert!(by_position_lost_it, "expected the position-rounded width to hit 0 somewhere");
+        assert!(
+            by_position_lost_it,
+            "expected the position-rounded width to hit 0 somewhere"
+        );
     }
 
     #[test]

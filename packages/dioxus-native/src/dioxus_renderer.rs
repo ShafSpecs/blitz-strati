@@ -19,8 +19,8 @@ cfg_if::cfg_if! {
     } else if #[cfg(feature = "skia-raster-base")] {
         use anyrender_skia::raster::SkiaRasterWindowRenderer as InnerRenderer;
     } else if #[cfg(feature = "vello-hybrid")] {
-        pub use anyrender_vello_hybrid::{
-            VelloHybridRendererOptions as InnerRendererOptions, VelloHybridWindowRenderer as InnerRenderer,
+        pub use anyrender_vello_gpu::{
+            VelloGpuRendererOptions as InnerRendererOptions, VelloGpuWindowRenderer as InnerRenderer,
             wgpu::{Features, Limits},
         };
     } else {

@@ -278,14 +278,18 @@ impl LayoutPassState<'_> {
             NodeData::Element(element_data) | NodeData::AnonymousBlock(element_data) => {
                 // A drop-down select: as wide as its widest option plus the
                 // arrow, one line tall.
-                if let crate::node::SpecialElementData::Select(select) = &element_data.special_data {
+                if let crate::node::SpecialElementData::Select(select) = &element_data.special_data
+                {
                     let (width, height) = (select.label_width, select.line_height);
                     let arrow = crate::select::arrow_width(font_size.unwrap_or(16.0));
                     return compute_leaf_layout(
                         inputs,
                         &node.layout_style(),
                         resolve_calc_value,
-                        |_known_size, _available_space| taffy::Size { width: width + arrow, height },
+                        |_known_size, _available_space| taffy::Size {
+                            width: width + arrow,
+                            height,
+                        },
                     );
                 }
                 // TODO: deduplicate with single-line text input

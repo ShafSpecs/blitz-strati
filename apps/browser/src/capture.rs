@@ -92,6 +92,7 @@ fn render_scene(
         blitz_dom::util::Color::WHITE,
         Default::default(),
         &Rect::new(0.0, 0.0, render_width as f64, render_height as f64),
+        anyrender::AntiAliasing::Enabled,
     );
     paint_scene(scene, doc, scale, render_width, render_height, 0, 0);
 

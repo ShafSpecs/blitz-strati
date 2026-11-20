@@ -31,7 +31,12 @@ impl ElementCx<'_, '_> {
 
         if let Some(label) = &data.label {
             let y = content.y0 + ((content.height() - label.height() as f64) / 2.0).max(0.0);
-            let room = Rect::new(content.x0, content.y0, (content.x1 - arrow).max(content.x0), content.y1);
+            let room = Rect::new(
+                content.x0,
+                content.y0,
+                (content.x1 - arrow).max(content.x0),
+                content.y1,
+            );
             scene.push_clip_layer(Fill::NonZero, self.transform, &room);
             crate::text::fill_text_in_color(
                 scene,
@@ -43,18 +48,30 @@ impl ElementCx<'_, '_> {
             scene.pop_layer();
         }
 
-        let appearance_none =
-            self.style.get_box().clone_appearance() == style::values::specified::box_::Appearance::None;
+        let appearance_none = self.style.get_box().clone_appearance()
+            == style::values::specified::box_::Appearance::None;
         if !appearance_none {
-            let (cx, cy) = (content.x1 - arrow / 2.0, content.y0 + content.height() / 2.0);
+            let (cx, cy) = (
+                content.x1 - arrow / 2.0,
+                content.y0 + content.height() / 2.0,
+            );
             let w = (font_size as f64 * 0.55 * self.scale).round();
             let h = w * 0.55;
             let mut chevron = BezPath::new();
             chevron.move_to((cx - w / 2.0, cy - h / 2.0));
             chevron.line_to((cx, cy + h / 2.0));
             chevron.line_to((cx + w / 2.0, cy - h / 2.0));
-            let stroke = Stroke::new(1.5 * self.scale).with_caps(Cap::Round).with_join(Join::Round);
-            scene.stroke(&stroke, self.transform, color, None, &chevron);
+            let stroke = Stroke::new(1.5 * self.scale)
+                .with_caps(Cap::Round)
+                .with_join(Join::Round);
+            scene.stroke(
+                &stroke,
+                self.transform,
+                color,
+                None,
+                &chevron,
+                anyrender::AntiAliasing::Enabled,
+            );
         }
     }
 }
@@ -69,7 +86,14 @@ impl BlitzDomPainter<'_, '_> {
         // Picker geometry is in CSS px, viewport coordinates.
         let to_device = Affine::translate((self.initial_x, self.initial_y)) * Affine::scale(scale);
 
-        scene.fill(Fill::NonZero, to_device, PICKER_BACKGROUND, None, &picker.rect);
+        scene.fill(
+            Fill::NonZero,
+            to_device,
+            PICKER_BACKGROUND,
+            None,
+            &picker.rect,
+            anyrender::AntiAliasing::Enabled,
+        );
         scene.push_clip_layer(Fill::NonZero, to_device, &picker.rect.inset(-1.0));
         for (i, row) in picker.rows.iter().enumerate() {
             let r = picker.row_rect(i);
@@ -78,7 +102,14 @@ impl BlitzDomPainter<'_, '_> {
             }
             let highlighted = picker.highlighted == Some(i);
             if highlighted {
-                scene.fill(Fill::NonZero, to_device, PICKER_HIGHLIGHT, None, &r);
+                scene.fill(
+                    Fill::NonZero,
+                    to_device,
+                    PICKER_HIGHLIGHT,
+                    None,
+                    &r,
+                    anyrender::AntiAliasing::Enabled,
+                );
             }
             let color = if highlighted {
                 PICKER_HIGHLIGHT_TEXT
@@ -87,7 +118,11 @@ impl BlitzDomPainter<'_, '_> {
             } else {
                 PICKER_TEXT
             };
-            let indent = if row.indented { blitz_dom::PICKER_INDENT } else { 0.0 };
+            let indent = if row.indented {
+                blitz_dom::PICKER_INDENT
+            } else {
+                0.0
+            };
             let label_height = row.label.height() as f64 / scale;
             let x = r.x0 + blitz_dom::PICKER_PADDING + indent;
             let y = r.y0 + ((r.height() - label_height) / 2.0).max(0.0);
@@ -101,6 +136,13 @@ impl BlitzDomPainter<'_, '_> {
         }
         scene.pop_layer();
         let border = picker.rect.inset(-0.5);
-        scene.stroke(&Stroke::new(1.0), to_device, PICKER_BORDER, None, &border);
+        scene.stroke(
+            &Stroke::new(1.0),
+            to_device,
+            PICKER_BORDER,
+            None,
+            &border,
+            anyrender::AntiAliasing::Enabled,
+        );
     }
 }

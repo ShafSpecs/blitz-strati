@@ -202,7 +202,10 @@ impl<'doc, Handler: EventHandler> EventDriver<'doc, Handler> {
             }
             UiEvent::PointerDown(e) => {
                 let (x, y) = at(&e.coords);
-                if !doc.open_picker().is_some_and(|(_, p)| p.rect.contains(kurbo::Point::new(x, y))) {
+                if !doc
+                    .open_picker()
+                    .is_some_and(|(_, p)| p.rect.contains(kurbo::Point::new(x, y)))
+                {
                     // A press elsewhere closes the picker; a press on the
                     // select itself only that.
                     doc.close_drop_down();
@@ -228,7 +231,9 @@ impl<'doc, Handler: EventHandler> EventDriver<'doc, Handler> {
                 }
                 true
             }
-            UiEvent::KeyDown(e) => doc.picker_key(&e.key, e.modifiers.contains(Modifiers::ALT), &mut dispatch),
+            UiEvent::KeyDown(e) => {
+                doc.picker_key(&e.key, e.modifiers.contains(Modifiers::ALT), &mut dispatch)
+            }
             UiEvent::KeyUp(_) => true,
             _ => false,
         }
@@ -297,7 +302,8 @@ impl<'doc, Handler: EventHandler> EventDriver<'doc, Handler> {
         // A captured pointer's events go to the capturing element.
         let capture = {
             let doc = self.doc.inner();
-            doc.pointer_capture().filter(|&id| doc.get_node(id).is_some())
+            doc.pointer_capture()
+                .filter(|&id| doc.get_node(id).is_some())
         };
         let target = match event {
             UiEvent::PointerMove(_) if capture.is_some() => capture,
@@ -536,6 +542,10 @@ impl<'doc, Handler: EventHandler> EventDriver<'doc, Handler> {
     }
 }
 
+#[expect(
+    deprecated,
+    reason = "Hyper and Super are legacy keys but platforms still report them as modifiers"
+)]
 fn is_modifier_key(key: &Key) -> bool {
     matches!(
         key,

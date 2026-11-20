@@ -764,7 +764,12 @@ mod tests {
 
         let b = CssBox::new(
             Rect::new(0.0, 0.0, 178.0, 34.0),
-            Insets { x0: 1.0, y0: 1.0, x1: 1.0, y1: 0.0 },
+            Insets {
+                x0: 1.0,
+                y0: 1.0,
+                x1: 1.0,
+                y1: 0.0,
+            },
             Insets::ZERO,
             0.0,
             NonUniformRoundedRectRadii {
@@ -777,7 +782,9 @@ mod tests {
         for edge in [Edge::Top, Edge::Right, Edge::Bottom, Edge::Left] {
             let path = b.border_edge_shape(edge);
             assert!(
-                path.elements().iter().all(|el| el.end_point().is_none_or(|p| p.is_finite())),
+                path.elements()
+                    .iter()
+                    .all(|el| el.end_point().is_none_or(|p| p.is_finite())),
                 "{edge:?}: NaN in {path:?}"
             );
         }

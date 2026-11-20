@@ -114,6 +114,7 @@ async fn main() {
                 Color::WHITE,
                 Default::default(),
                 &Rect::new(0.0, 0.0, render_width as f64, render_height as f64),
+                anyrender::AntiAliasing::Enabled,
             );
 
             // Render document

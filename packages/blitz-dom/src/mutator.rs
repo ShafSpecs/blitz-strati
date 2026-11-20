@@ -423,9 +423,15 @@ impl DocumentMutator<'_> {
         let Some(element) = doc.nodes[node_id].element_data_mut() else {
             return;
         };
-        let password = element.attr(local_name!("type")).is_some_and(|t| t.eq_ignore_ascii_case("password"));
+        let password = element
+            .attr(local_name!("type"))
+            .is_some_and(|t| t.eq_ignore_ascii_case("password"));
         if let Some(input) = element.text_input_data_mut() {
-            input.set_masked(&mut doc.font_ctx.lock().unwrap(), &mut doc.layout_ctx, password);
+            input.set_masked(
+                &mut doc.font_ctx.lock().unwrap(),
+                &mut doc.layout_ctx,
+                password,
+            );
         }
     }
 
@@ -934,7 +940,10 @@ impl<'doc> DocumentMutator<'doc> {
 
         // Nodes recorded during this batch may have been dropped later in it
         // (created, inserted, then removed for good): skip those.
-        if let Some(id) = self.title_node.filter(|&id| self.doc.get_node(id).is_some()) {
+        if let Some(id) = self
+            .title_node
+            .filter(|&id| self.doc.get_node(id).is_some())
+        {
             let title = self.doc.nodes[id].text_content();
             self.doc.shell_provider.set_window_title(title);
         }
@@ -943,7 +952,11 @@ impl<'doc> DocumentMutator<'doc> {
         // document apply: one being built outside it (a framework renders
         // into a fragment) is processed when it's inserted.
         for id in self.style_nodes.drain() {
-            if self.doc.get_node(id).is_some_and(|n| n.flags.is_in_document()) {
+            if self
+                .doc
+                .get_node(id)
+                .is_some_and(|n| n.flags.is_in_document())
+            {
                 self.doc.process_style_element(id);
             }
         }

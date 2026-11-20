@@ -108,20 +108,20 @@ taffy = { version = "0.15", default-features = false, features = [
     "calc",
     "detailed_layout_info",
 ] }
-parley = { version = "0.12", default-features = false, features = ["std"] }
-skrifa = { version = "0.44", default-features = false, features = [
+parley = { version = "0.13", default-features = false, features = ["std"] }
+skrifa = { version = "0.49", default-features = false, features = [
     "std",
 ] } # Should match parley and vello versions
 
 # AnyRender
-anyrender = { version = "0.14.0" }
-anyrender_serialize = { version = "0.8.0" }
-anyrender_skia = { version = "0.12.0" }
-anyrender_vello = { version = "0.15.0" }
-anyrender_vello_cpu = { version = "0.18.0" }
-anyrender_vello_hybrid = { version = "0.11.0" }
-anyrender_svg = { version = "0.15.0" }
-wgpu_context = { version = "0.10.0" }
+anyrender = { version = "0.15.0" }
+anyrender_serialize = { version = "0.9.0" }
+anyrender_skia = { version = "0.13.0" }
+anyrender_vello = { version = "0.16.0" }
+anyrender_vello_cpu = { version = "0.19.0" }
+anyrender_vello_gpu = { version = "0.12.0" }
+anyrender_svg = { version = "0.16.0" }
+wgpu_context = { version = "0.11.0" }
 
 # Linebender + Fontations + WGPU + SVG
 color = "0.3"
@@ -129,8 +129,8 @@ linebender_resource_handle = "0.1"
 peniko = "0.6.0"
 kurbo = "0.13.1"
 wgpu = "30"
-usvg = "0.48.1"
-svgtypes = "0.16.1" # Should match usvg's version
+usvg = "0.50"
+svgtypes = "0.16.2" # Should match usvg's version
 
 # Windowing & Input
 raw-window-handle = "0.6.0"
@@ -262,7 +262,7 @@ log-phase-times = ["dioxus-native/log-phase-times"]
 anyrender = { workspace = true }
 anyrender_vello = { workspace = true }
 anyrender_vello_cpu = { workspace = true, features = ["multithreading"] }
-anyrender_vello_hybrid = { workspace = true }
+anyrender_vello_gpu = { workspace = true }
 blitz-dom = { workspace = true, features = ["default"] }
 blitz-html = { workspace = true }
 blitz-traits = { workspace = true }
@@ -288,15 +288,44 @@ peniko = { workspace = true }
 color = { workspace = true }
 env_logger = "0.11"
 tracing-subscriber = "0.3"
-vello = "0.11"
-vello_cpu = "0.3"
-vello_gpu = "0.3"
-vello_common = "0.3"
+vello = "0.12"
+vello_cpu = "0.4"
+vello_gpu = "0.4"
+vello_common = "0.4"
 wgpu = { workspace = true }
 wgpu_context = { workspace = true }
 rustc-hash = { workspace = true }
 
 [patch.crates-io]
+vello = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+vello_encoding = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+vello_shaders = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+vello_common = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+vello_cpu = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+vello_gpu = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+vello_gpu_shaders = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+glifo = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+wgpu = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
+wgpu-core = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
+wgpu-hal = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
+wgpu-types = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
+wgpu-naga-bridge = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
+wgpu-core-deps-windows-linux-android = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
+wgpu-core-deps-apple = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
+wgpu-core-deps-emscripten = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
+naga = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
+naga-types = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
+anyrender = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+anyrender_serialize = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+anyrender_skia = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+anyrender_vello = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+anyrender_vello_cpu = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+anyrender_vello_gpu = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+anyrender_svg = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+wgpu_context = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+image_filters_types = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+pixels_window_renderer = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+softbuffer_window_renderer = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
 accesskit_unix = { path = "vendor/accesskit_unix" }
 accesskit_atspi_common = { path = "vendor/accesskit_atspi_common" }
 
@@ -305,7 +334,7 @@ accesskit_atspi_common = { path = "vendor/accesskit_atspi_common" }
 # anyrender_skia = { path = "../anyrender/crates/anyrender_skia" }
 # anyrender_vello = { path = "../anyrender/crates/anyrender_vello" }
 # anyrender_vello_cpu = { path = "../anyrender/crates/anyrender_vello_cpu" }
-# anyrender_vello_hybrid = { path = "../anyrender/crates/anyrender_vello_hybrid" }
+# anyrender_vello_gpu = { path = "../anyrender/crates/anyrender_vello_gpu" }
 # anyrender_svg = { path = "../anyrender/crates/anyrender_svg" }
 # wgpu_context = { path = "../anyrender/crates/wgpu_context" }
 

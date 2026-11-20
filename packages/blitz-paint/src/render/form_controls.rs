@@ -13,7 +13,9 @@ impl ElementCx<'_, '_> {
         }
         // `appearance: none`: the author styles the box; nothing of the
         // native control is drawn.
-        if self.style.get_box().clone_appearance() == style::values::specified::box_::Appearance::None {
+        if self.style.get_box().clone_appearance()
+            == style::values::specified::box_::Appearance::None
+        {
             return;
         }
         if let Some(range) = blitz_dom::RangeState::of(self.element) {
@@ -64,7 +66,11 @@ impl ElementCx<'_, '_> {
         let disabled = self.node.attr(local_name!("disabled")).is_some();
         // accent-color isn't available from Stylo's servo build: the default
         // accent, as Chromium's.
-        let accent = if disabled { Color::from_rgba8(160, 160, 160, 255) } else { Color::from_rgba8(0, 117, 255, 255) };
+        let accent = if disabled {
+            Color::from_rgba8(160, 160, 160, 255)
+        } else {
+            Color::from_rgba8(0, 117, 255, 255)
+        };
         let track_bg = Color::from_rgba8(128, 128, 128, 110);
         let scale = self.scale;
         let content = self.frame.content_box;
@@ -74,11 +80,33 @@ impl ElementCx<'_, '_> {
         let right = (content.x1 - thumb / 2.0).max(left);
         let x = left + (right - left) * range.fraction();
         let half = 2.0 * scale;
-        let track = kurbo::Rect::new(content.x0, cy - half, content.x1, cy + half).to_rounded_rect(half);
-        scene.fill(Fill::NonZero, self.transform, track_bg, None, &track);
+        let track =
+            kurbo::Rect::new(content.x0, cy - half, content.x1, cy + half).to_rounded_rect(half);
+        scene.fill(
+            Fill::NonZero,
+            self.transform,
+            track_bg,
+            None,
+            &track,
+            anyrender::AntiAliasing::Enabled,
+        );
         let filled = kurbo::Rect::new(content.x0, cy - half, x, cy + half).to_rounded_rect(half);
-        scene.fill(Fill::NonZero, self.transform, accent, None, &filled);
-        scene.fill(Fill::NonZero, self.transform, accent, None, &Circle::new((x, cy), thumb / 2.0));
+        scene.fill(
+            Fill::NonZero,
+            self.transform,
+            accent,
+            None,
+            &filled,
+            anyrender::AntiAliasing::Enabled,
+        );
+        scene.fill(
+            Fill::NonZero,
+            self.transform,
+            accent,
+            None,
+            &Circle::new((x, cy), thumb / 2.0),
+            anyrender::AntiAliasing::Enabled,
+        );
     }
 }
 
@@ -91,7 +119,14 @@ fn draw_checkbox(
     scale: f64,
 ) {
     if checked {
-        scene.fill(Fill::NonZero, transform, accent_color, None, &frame);
+        scene.fill(
+            Fill::NonZero,
+            transform,
+            accent_color,
+            None,
+            &frame,
+            anyrender::AntiAliasing::Enabled,
+        );
         //Tick code derived from masonry
         let mut path = BezPath::new();
         path.move_to((2.0, 9.0));
@@ -110,11 +145,32 @@ fn draw_checkbox(
             dash_offset: 0.0,
         };
 
-        scene.stroke(&style, transform, Color::WHITE, None, &path);
+        scene.stroke(
+            &style,
+            transform,
+            Color::WHITE,
+            None,
+            &path,
+            anyrender::AntiAliasing::Enabled,
+        );
     } else {
         // Unchecked: a grey outline, as Chromium's.
-        scene.fill(Fill::NonZero, transform, Color::WHITE, None, &frame);
-        scene.stroke(&Stroke::default(), transform, Color::from_rgba8(118, 118, 118, 255), None, &frame);
+        scene.fill(
+            Fill::NonZero,
+            transform,
+            Color::WHITE,
+            None,
+            &frame,
+            anyrender::AntiAliasing::Enabled,
+        );
+        scene.stroke(
+            &Stroke::default(),
+            transform,
+            Color::from_rgba8(118, 118, 118, 255),
+            None,
+            &frame,
+            anyrender::AntiAliasing::Enabled,
+        );
     }
 }
 
@@ -130,12 +186,47 @@ fn draw_radio_button(
     let gap = Circle::new(center, 6.0 * scale);
     let inner_circle = Circle::new(center, 4.0 * scale);
     if checked {
-        scene.fill(Fill::NonZero, transform, accent_color, None, &outer_ring);
-        scene.fill(Fill::NonZero, transform, Color::WHITE, None, &gap);
-        scene.fill(Fill::NonZero, transform, accent_color, None, &inner_circle);
+        scene.fill(
+            Fill::NonZero,
+            transform,
+            accent_color,
+            None,
+            &outer_ring,
+            anyrender::AntiAliasing::Enabled,
+        );
+        scene.fill(
+            Fill::NonZero,
+            transform,
+            Color::WHITE,
+            None,
+            &gap,
+            anyrender::AntiAliasing::Enabled,
+        );
+        scene.fill(
+            Fill::NonZero,
+            transform,
+            accent_color,
+            None,
+            &inner_circle,
+            anyrender::AntiAliasing::Enabled,
+        );
     } else {
         const GRAY: Color = color::palette::css::GRAY;
-        scene.fill(Fill::NonZero, transform, GRAY, None, &outer_ring);
-        scene.fill(Fill::NonZero, transform, Color::WHITE, None, &gap);
+        scene.fill(
+            Fill::NonZero,
+            transform,
+            GRAY,
+            None,
+            &outer_ring,
+            anyrender::AntiAliasing::Enabled,
+        );
+        scene.fill(
+            Fill::NonZero,
+            transform,
+            Color::WHITE,
+            None,
+            &gap,
+            anyrender::AntiAliasing::Enabled,
+        );
     }
 }

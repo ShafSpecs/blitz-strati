@@ -70,6 +70,7 @@ impl Widget for DemoWidget {
                 }),
                 None,
                 &Rect::from_origin_size((0.0, 0.0), (width as f64, height as f64)),
+                anyrender::AntiAliasing::Enabled,
             );
         } else {
             println!("WARNING: render returned None");

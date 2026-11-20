@@ -3,8 +3,8 @@ mod border;
 mod box_shadow;
 mod clip_path;
 mod form_controls;
-mod select;
 mod mask;
+mod select;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -229,7 +229,14 @@ impl<'dom, 'a> BlitzDomPainter<'dom, 'a> {
                 (self.initial_x, self.initial_y),
                 (bg_width as f64, bg_height as f64),
             );
-            scene.fill(Fill::NonZero, Affine::IDENTITY, bg_color, None, &rect);
+            scene.fill(
+                Fill::NonZero,
+                Affine::IDENTITY,
+                bg_color,
+                None,
+                &rect,
+                anyrender::AntiAliasing::Enabled,
+            );
         }
 
         // The root clip rectangle is the viewport (in screen coordinates, with the
@@ -513,8 +520,13 @@ impl<'dom, 'a> BlitzDomPainter<'dom, 'a> {
                 // Save it so that the mask can be drawn untransformed by scroll offsets.
                 let unscrolled_transform = cx.transform;
 
-                let filter = convert_filters(&effects.filter.0).map(Arc::new);
-                let backdrop_filter = convert_filters(&effects.backdrop_filter.0).map(Arc::new);
+                let mut filter_bounds = cx.frame.border_box_path().bounding_box();
+                if !should_clip {
+                    filter_bounds = filter_bounds.union(*node.scrollable_overflow());
+                }
+                let filter = convert_filters(&effects.filter.0, filter_bounds).map(Arc::new);
+                let backdrop_filter =
+                    convert_filters(&effects.backdrop_filter.0, filter_bounds).map(Arc::new);
 
                 // Adjust effect layer clip by filter expansion area
                 //
@@ -830,6 +842,7 @@ impl ElementCx<'_, '_> {
                     track_color.multiply_alpha(opacity),
                     None,
                     &track_rect,
+                    anyrender::AntiAliasing::Enabled,
                 );
             }
 
@@ -854,6 +867,7 @@ impl ElementCx<'_, '_> {
                 color.multiply_alpha(opacity),
                 None,
                 &rect.to_rounded_rect(radius),
+                anyrender::AntiAliasing::Enabled,
             );
             // Contrast stroke, default thumbs only: an author-specified
             // scrollbar-color is rendered exactly as given.
@@ -866,6 +880,7 @@ impl ElementCx<'_, '_> {
                     stroke_color.multiply_alpha(opacity),
                     None,
                     &stroke_rect.to_rounded_rect(radius - stroke_width / 2.0),
+                    anyrender::AntiAliasing::Enabled,
                 );
             }
         }
@@ -955,6 +970,7 @@ impl ElementCx<'_, '_> {
                         SELECTION_COLOR,
                         None,
                         &convert_rect(rect),
+                        anyrender::AntiAliasing::Enabled,
                     );
                 }
                 if let Some(cursor) = input_data.editor.cursor_geometry(1.5) {
@@ -970,6 +986,7 @@ impl ElementCx<'_, '_> {
                         caret_color.as_srgb_color(),
                         None,
                         &convert_rect(&cursor),
+                        anyrender::AntiAliasing::Enabled,
                     );
                 };
             }
@@ -1002,7 +1019,14 @@ impl ElementCx<'_, '_> {
                 );
                 for (rect, _line_idx) in composed.geometry(layout) {
                     let line = kurbo::Rect::new(rect.x0, rect.y1 - thickness, rect.x1, rect.y1);
-                    scene.fill(Fill::NonZero, transform, color, None, &line);
+                    scene.fill(
+                        Fill::NonZero,
+                        transform,
+                        color,
+                        None,
+                        &line,
+                        anyrender::AntiAliasing::Enabled,
+                    );
                 }
             }
 
@@ -1287,7 +1311,9 @@ impl ElementCx<'_, '_> {
         if let Some(bounds) = self.widget_geometry {
             if self.element.custom_widget_data().is_some() {
                 let geometry = crate::WidgetGeometry::new(self.transform, self.frame.content_box);
-                bounds.borrow_mut().insert((self.dom.id(), self.node.id), geometry);
+                bounds
+                    .borrow_mut()
+                    .insert((self.dom.id(), self.node.id), geometry);
             }
             return;
         }
@@ -1341,7 +1367,14 @@ impl ElementCx<'_, '_> {
                 taffy::Display::None => Color::new([0.0, 0.0, 1.0, 1.0]),
             };
 
-            scene.stroke(&stroke, self.transform, stroke_color, None, &shape);
+            scene.stroke(
+                &stroke,
+                self.transform,
+                stroke_color,
+                None,
+                &shape,
+                anyrender::AntiAliasing::Enabled,
+            );
         }
     }
 }

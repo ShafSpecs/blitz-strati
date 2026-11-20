@@ -1,8 +1,8 @@
 use super::handle_dom_event;
 use crate::{Attribute, BaseDocument, DocumentConfig, Widget, qual_name};
 use blitz_traits::events::{
-    BlitzPointerEvent, BlitzPointerId, BlitzWheelDelta, BlitzWheelEvent, DomEvent,
-    DomEventData, MouseEventButton, PointerCoords, UiEvent,
+    BlitzPointerEvent, BlitzPointerId, BlitzWheelDelta, BlitzWheelEvent, DomEvent, DomEventData,
+    MouseEventButton, PointerCoords, UiEvent,
 };
 use blitz_traits::shell::{ColorScheme, Viewport};
 use std::cell::RefCell;
@@ -24,11 +24,22 @@ fn pointer_and_wheel_use_scrolled_content_origin() {
     });
     let root = doc.root_node().id;
     let mut m = doc.mutate();
-    let style = |value: &str| vec![Attribute { name: qual_name!("style"), value: value.into() }];
+    let style = |value: &str| {
+        vec![Attribute {
+            name: qual_name!("style"),
+            value: value.into(),
+        }]
+    };
     let html = m.create_element(qual_name!("html", html), vec![]);
     let body = m.create_element(qual_name!("body", html), style("margin:0;height:1000px"));
-    let parent = m.create_element(qual_name!("div", html), style("width:200px;height:100px;overflow:scroll;margin:20px;border:2px solid;padding:5px"));
-    let widget = m.create_element(qual_name!("div", html), style("width:101px;height:150px;margin-left:30px;border:3px solid;padding:7px"));
+    let parent = m.create_element(
+        qual_name!("div", html),
+        style("width:200px;height:100px;overflow:scroll;margin:20px;border:2px solid;padding:5px"),
+    );
+    let widget = m.create_element(
+        qual_name!("div", html),
+        style("width:101px;height:150px;margin-left:30px;border:3px solid;padding:7px"),
+    );
     m.append_children(parent, &[widget]);
     m.append_children(body, &[parent]);
     m.append_children(html, &[body]);
@@ -54,21 +65,36 @@ fn pointer_and_wheel_use_scrolled_content_origin() {
     origin.x -= 5.0;
     origin.y -= 7.0;
     let coords = PointerCoords {
-        client_x: origin.x + 9.0, client_y: origin.y + 12.0,
-        page_x: origin.x + 9.0 + 5.0, page_y: origin.y + 12.0 + 7.0,
-        screen_x: 123.0, screen_y: 456.0,
+        client_x: origin.x + 9.0,
+        client_y: origin.y + 12.0,
+        page_x: origin.x + 9.0 + 5.0,
+        page_y: origin.y + 12.0 + 7.0,
+        screen_x: 123.0,
+        screen_y: 456.0,
     };
     let pointer = BlitzPointerEvent {
-        id: BlitzPointerId::Mouse, is_primary: true, coords,
-        button: MouseEventButton::Main, buttons: Default::default(),
-        mods: Default::default(), details: Default::default(),
-        element: Default::default(), active_pointers: Default::default(),
+        id: BlitzPointerId::Mouse,
+        is_primary: true,
+        coords,
+        button: MouseEventButton::Main,
+        buttons: Default::default(),
+        mods: Default::default(),
+        details: Default::default(),
+        element: Default::default(),
+        active_pointers: Default::default(),
     };
     let wheel = BlitzWheelEvent {
-        coords, delta: BlitzWheelDelta::Pixels(2.0, -3.0),
-        buttons: Default::default(), mods: Default::default(), element: Default::default(),
+        coords,
+        delta: BlitzWheelDelta::Pixels(2.0, -3.0),
+        buttons: Default::default(),
+        mods: Default::default(),
+        element: Default::default(),
     };
-    for data in [DomEventData::PointerDown(pointer.clone()), DomEventData::PointerMove(pointer), DomEventData::Wheel(wheel)] {
+    for data in [
+        DomEventData::PointerDown(pointer.clone()),
+        DomEventData::PointerMove(pointer),
+        DomEventData::Wheel(wheel),
+    ] {
         handle_dom_event(&mut doc, &mut DomEvent::new(widget, data), |_| {});
     }
     let events = log.borrow();

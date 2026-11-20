@@ -212,7 +212,14 @@ impl ElementCx<'_, '_> {
                             centerline_radius(radii.bottom_left),
                         );
                         let rr = kurbo::RoundedRect::from_rect(centerline_box, radii);
-                        scene.stroke(&stroke, self.transform, color, None, &rr);
+                        scene.stroke(
+                            &stroke,
+                            self.transform,
+                            color,
+                            None,
+                            &rr,
+                            anyrender::AntiAliasing::Enabled,
+                        );
                         return;
                     }
                 } else if self.frame.is_elliptical_border() {
@@ -220,7 +227,14 @@ impl ElementCx<'_, '_> {
                     let rx = (bb.width() + pb.width()) / 4.0;
                     let ry = (bb.height() + pb.height()) / 4.0;
                     let e = kurbo::Ellipse::new(bb.center(), (rx, ry), 0.0);
-                    scene.stroke(&stroke, self.transform, color, None, &e);
+                    scene.stroke(
+                        &stroke,
+                        self.transform,
+                        color,
+                        None,
+                        &e,
+                        anyrender::AntiAliasing::Enabled,
+                    );
                     return;
                 }
             }
@@ -335,7 +349,14 @@ impl ElementCx<'_, '_> {
                 path.extend(&borders[next].1);
                 next += 1;
             }
-            scene.fill(Fill::NonZero, self.transform, color, None, &path);
+            scene.fill(
+                Fill::NonZero,
+                self.transform,
+                color,
+                None,
+                &path,
+                anyrender::AntiAliasing::Enabled,
+            );
             start = next;
         }
     }
@@ -432,7 +453,14 @@ impl ElementCx<'_, '_> {
             .with_dashes(0.0, [dash, gap]);
         let clip = self.frame.border_edge_shape(edge);
         scene.push_clip_layer(Fill::NonZero, self.transform, &clip);
-        scene.stroke(&stroke, self.transform, color, None, &centerline);
+        scene.stroke(
+            &stroke,
+            self.transform,
+            color,
+            None,
+            &centerline,
+            anyrender::AntiAliasing::Enabled,
+        );
         scene.pop_layer();
     }
 
@@ -505,7 +533,14 @@ impl ElementCx<'_, '_> {
 
         let clip = self.frame.border_edge_shape(edge);
         scene.push_clip_layer(Fill::NonZero, self.transform, &clip);
-        scene.fill(Fill::NonZero, self.transform, color, None, &path);
+        scene.fill(
+            Fill::NonZero,
+            self.transform,
+            color,
+            None,
+            &path,
+            anyrender::AntiAliasing::Enabled,
+        );
         scene.pop_layer();
     }
 
@@ -558,7 +593,14 @@ impl ElementCx<'_, '_> {
 
         let mut fill = |x0: f64, y0: f64, x1: f64, y1: f64| {
             let shape = Rect::new(x0, y0, x1, y1).scale_from_origin(self.scale);
-            scene.fill(Fill::NonZero, self.transform, border_color, None, &shape);
+            scene.fill(
+                Fill::NonZero,
+                self.transform,
+                border_color,
+                None,
+                &shape,
+                anyrender::AntiAliasing::Enabled,
+            );
         };
 
         // Horizontal borders: the outer edges, then the gutters between adjacent row tracks.
@@ -626,13 +668,19 @@ impl ElementCx<'_, '_> {
             return;
         }
         let offset = outline.outline_offset.to_f64_px() * self.scale;
-        let outer_box = self.frame.border_box.inflate(offset + width, offset + width);
+        let outer_box = self
+            .frame
+            .border_box
+            .inflate(offset + width, offset + width);
         if outer_box.width() <= 0.0 || outer_box.height() <= 0.0 {
             return;
         }
         let grow = |r: Vec2| {
             if r.x > 0.0 && r.y > 0.0 {
-                Vec2::new((r.x + offset + width).max(0.0), (r.y + offset + width).max(0.0))
+                Vec2::new(
+                    (r.x + offset + width).max(0.0),
+                    (r.y + offset + width).max(0.0),
+                )
             } else {
                 Vec2::ZERO
             }
@@ -644,7 +692,20 @@ impl ElementCx<'_, '_> {
             bottom_right: grow(radii.bottom_right),
             bottom_left: grow(radii.bottom_left),
         };
-        let ring = CssBox::new(outer_box, Insets::uniform(width), Insets::ZERO, 0.0, outer_radii);
-        scene.fill(Fill::NonZero, self.transform, color, None, &ring.border_ring());
+        let ring = CssBox::new(
+            outer_box,
+            Insets::uniform(width),
+            Insets::ZERO,
+            0.0,
+            outer_radii,
+        );
+        scene.fill(
+            Fill::NonZero,
+            self.transform,
+            color,
+            None,
+            &ring.border_ring(),
+            anyrender::AntiAliasing::Enabled,
+        );
     }
 }
