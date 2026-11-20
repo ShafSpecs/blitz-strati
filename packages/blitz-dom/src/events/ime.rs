@@ -18,10 +18,19 @@ pub(crate) fn handle_ime_event<F: FnMut(DomEvent)>(
         return;
     };
     let composition = |kind: fn(BlitzCompositionEvent) -> DomEventData, data: &str| {
-        DomEvent::new(node_id, kind(BlitzCompositionEvent { data: data.to_owned() }))
+        DomEvent::new(
+            node_id,
+            kind(BlitzCompositionEvent {
+                data: data.to_owned(),
+            }),
+        )
     };
     let node = &mut doc.nodes[node_id];
-    let Some(input_data) = node.data.downcast_element_mut().and_then(|el| el.text_input_data_mut()) else {
+    let Some(input_data) = node
+        .data
+        .downcast_element_mut()
+        .and_then(|el| el.text_input_data_mut())
+    else {
         return;
     };
 
@@ -68,13 +77,19 @@ impl BaseDocument {
         let Some(input) = node.element_data().and_then(|el| el.text_input_data()) else {
             return;
         };
-        let (Some(caret), Some(layout)) = (input.editor.cursor_geometry(1.0), input.editor.try_layout()) else {
+        let (Some(caret), Some(layout)) =
+            (input.editor.cursor_geometry(1.0), input.editor.try_layout())
+        else {
             return;
         };
         // Parley's geometry is at the editor's scale (device pixels).
         let scale = layout.scale() as f64;
         let l = node.final_layout();
-        let (dx, dy) = if input.is_multiline { (0.0, input.scroll_offset) } else { (input.scroll_offset, 0.0) };
+        let (dx, dy) = if input.is_multiline {
+            (0.0, input.scroll_offset)
+        } else {
+            (input.scroll_offset, 0.0)
+        };
         let x = (l.border.left + l.padding.left) as f64 + caret.x0 / scale - dx as f64;
         let y = (l.border.top + l.padding.top) as f64 + caret.y0 / scale - dy as f64;
         let height = (caret.y1 - caret.y0) / scale;
@@ -83,7 +98,12 @@ impl BaseDocument {
         let mut pts = [kurbo::Point::new(x, y), kurbo::Point::new(x, y + height)];
         let scroll = self.ime_scroll(node_id, &mut pts);
         let height = (pts[1].y - pts[0].y).abs();
-        self.shell_provider.set_ime_cursor_area((pts[0].x - scroll.x) as f32, (pts[0].y - scroll.y) as f32, 1.0, height as f32);
+        self.shell_provider.set_ime_cursor_area(
+            (pts[0].x - scroll.x) as f32,
+            (pts[0].y - scroll.y) as f32,
+            1.0,
+            height as f32,
+        );
     }
 
     /// Maps the points to the document; returns the viewport scroll to take
@@ -99,20 +119,44 @@ impl BaseDocument {
     /// Places the IME at a text input's content box, before it has a caret.
     pub(crate) fn set_ime_cursor_area_at_field(&mut self, node_id: NodeId) {
         let l = *self.nodes[node_id].final_layout();
-        let (x, y) = ((l.border.left + l.padding.left) as f64, (l.border.top + l.padding.top) as f64);
+        let (x, y) = (
+            (l.border.left + l.padding.left) as f64,
+            (l.border.top + l.padding.top) as f64,
+        );
         let (w, h) = (l.content_box_width() as f64, l.content_box_height() as f64);
         // All four corners: a rotation or a flip reverses which is the origin.
-        let mut pts = [kurbo::Point::new(x, y), kurbo::Point::new(x + w, y), kurbo::Point::new(x, y + h), kurbo::Point::new(x + w, y + h)];
+        let mut pts = [
+            kurbo::Point::new(x, y),
+            kurbo::Point::new(x + w, y),
+            kurbo::Point::new(x, y + h),
+            kurbo::Point::new(x + w, y + h),
+        ];
         let scroll = self.ime_scroll(node_id, &mut pts);
-        let (x0, y0) = pts.iter().fold((f64::INFINITY, f64::INFINITY), |(x, y), p| (x.min(p.x), y.min(p.y)));
-        let (x1, y1) = pts.iter().fold((f64::NEG_INFINITY, f64::NEG_INFINITY), |(x, y), p| (x.max(p.x), y.max(p.y)));
-        self.shell_provider.set_ime_cursor_area((x0 - scroll.x) as f32, (y0 - scroll.y) as f32, (x1 - x0) as f32, (y1 - y0) as f32);
+        let (x0, y0) = pts
+            .iter()
+            .fold((f64::INFINITY, f64::INFINITY), |(x, y), p| {
+                (x.min(p.x), y.min(p.y))
+            });
+        let (x1, y1) = pts
+            .iter()
+            .fold((f64::NEG_INFINITY, f64::NEG_INFINITY), |(x, y), p| {
+                (x.max(p.x), y.max(p.y))
+            });
+        self.shell_provider.set_ime_cursor_area(
+            (x0 - scroll.x) as f32,
+            (y0 - scroll.y) as f32,
+            (x1 - x0) as f32,
+            (y1 - y0) as f32,
+        );
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Attribute, BaseDocument, Document, DocumentConfig, EventDriver, EventHandler, QualName, qual_name};
+    use crate::{
+        Attribute, BaseDocument, Document, DocumentConfig, EventDriver, EventHandler, QualName,
+        qual_name,
+    };
     use blitz_traits::events::{BlitzImeEvent as E, DomEvent, EventState, UiEvent};
     use blitz_traits::node_id::NodeId;
     use blitz_traits::shell::{ColorScheme, Viewport};
@@ -121,7 +165,13 @@ mod tests {
 
     struct Record(Rc<RefCell<Vec<String>>>);
     impl EventHandler for Record {
-        fn handle_event(&mut self, _: &[NodeId], event: &mut DomEvent, _: &mut dyn Document, _: &mut EventState) {
+        fn handle_event(
+            &mut self,
+            _: &[NodeId],
+            event: &mut DomEvent,
+            _: &mut dyn Document,
+            _: &mut EventState,
+        ) {
             let detail = match &event.data {
                 blitz_traits::events::DomEventData::CompositionStart(c)
                 | blitz_traits::events::DomEventData::CompositionUpdate(c)
@@ -129,7 +179,9 @@ mod tests {
                 blitz_traits::events::DomEventData::Input(i) => format!("({})", i.value),
                 _ => String::new(),
             };
-            self.0.borrow_mut().push(format!("{}{detail}", event.data.name()));
+            self.0
+                .borrow_mut()
+                .push(format!("{}{detail}", event.data.name()));
         }
     }
 
@@ -145,8 +197,14 @@ mod tests {
         let mut m = doc.mutate();
         let html = m.create_element(qual_name!("html", html), vec![]);
         let body = m.create_element(qual_name!("body", html), vec![]);
-        let attr = |name: QualName, value: &str| Attribute { name, value: value.to_string() };
-        let input = m.create_element(qual_name!("input", html), vec![attr(qual_name!("type"), "text")]);
+        let attr = |name: QualName, value: &str| Attribute {
+            name,
+            value: value.to_string(),
+        };
+        let input = m.create_element(
+            qual_name!("input", html),
+            vec![attr(qual_name!("type"), "text")],
+        );
         m.append_children(body, &[input]);
         m.append_children(html, &[body]);
         m.append_children(root, &[html]);
@@ -169,7 +227,12 @@ mod tests {
             EventDriver::new(&mut doc, Record(log.clone())).handle_ui_event(UiEvent::Ime(event));
         }
         // The raw IME event (named "composition") isn't a DOM event; skip it.
-        let got: Vec<String> = log.borrow().iter().filter(|e| *e != "composition").cloned().collect();
+        let got: Vec<String> = log
+            .borrow()
+            .iter()
+            .filter(|e| *e != "composition")
+            .cloned()
+            .collect();
         assert_eq!(
             got,
             [
@@ -202,7 +265,10 @@ mod tests {
     }
     impl blitz_traits::shell::ShellProvider for ShellLog {
         fn set_ime_enabled(&self, is_enabled: bool) {
-            self.0.lock().unwrap().push(format!("enabled({is_enabled})"));
+            self.0
+                .lock()
+                .unwrap()
+                .push(format!("enabled({is_enabled})"));
         }
         fn set_ime_cursor_area(&self, x: f32, y: f32, w: f32, h: f32) {
             self.0.lock().unwrap().push("area".into());
@@ -225,9 +291,18 @@ mod tests {
         let mut m = doc.mutate();
         let html = m.create_element(qual_name!("html", html), vec![]);
         let body = m.create_element(qual_name!("body", html), vec![]);
-        let attr = |name: QualName, value: &str| Attribute { name, value: value.to_string() };
-        let text = m.create_element(qual_name!("input", html), vec![attr(qual_name!("type"), "text")]);
-        let password = m.create_element(qual_name!("input", html), vec![attr(qual_name!("type"), "password")]);
+        let attr = |name: QualName, value: &str| Attribute {
+            name,
+            value: value.to_string(),
+        };
+        let text = m.create_element(
+            qual_name!("input", html),
+            vec![attr(qual_name!("type"), "text")],
+        );
+        let password = m.create_element(
+            qual_name!("input", html),
+            vec![attr(qual_name!("type"), "password")],
+        );
         m.append_children(body, &[text, password]);
         m.append_children(html, &[body]);
         m.append_children(root, &[html]);
@@ -238,14 +313,20 @@ mod tests {
         assert_eq!(calls.lock().unwrap()[..], ["enabled(true)", "area"]);
         calls.lock().unwrap().clear();
         doc.set_focus_to(password);
-        assert!(!calls.lock().unwrap().contains(&"enabled(true)".to_string()), "{:?}", calls.lock().unwrap());
+        assert!(
+            !calls.lock().unwrap().contains(&"enabled(true)".to_string()),
+            "{:?}",
+            calls.lock().unwrap()
+        );
 
         // "Show password": the focused field becomes a text field, and back.
         calls.lock().unwrap().clear();
-        doc.mutate().set_attribute(password, qual_name!("type"), "text");
+        doc.mutate()
+            .set_attribute(password, qual_name!("type"), "text");
         assert_eq!(calls.lock().unwrap()[..], ["enabled(true)", "area"]);
         calls.lock().unwrap().clear();
-        doc.mutate().set_attribute(password, qual_name!("type"), "password");
+        doc.mutate()
+            .set_attribute(password, qual_name!("type"), "password");
         assert_eq!(calls.lock().unwrap()[..], ["enabled(false)"]);
     }
 
@@ -269,7 +350,10 @@ mod tests {
         let style = "display:block;margin:20px 0 0 50px;border:2px solid;padding:3px";
         let input = m.create_element(
             qual_name!("input", html),
-            vec![Attribute { name: qual_name!("style"), value: style.to_string() }],
+            vec![Attribute {
+                name: qual_name!("style"),
+                value: style.to_string(),
+            }],
         );
         m.append_children(body, &[input]);
         m.append_children(html, &[body]);
@@ -281,7 +365,10 @@ mod tests {
         let areas = areas.lock().unwrap();
         assert!(!areas.is_empty(), "{:?}", calls.lock().unwrap());
         for &(x, y, ..) in areas.iter() {
-            assert!((x - 63.0).abs() < 1.0 && (y - 25.0).abs() < 1.0, "{areas:?}");
+            assert!(
+                (x - 63.0).abs() < 1.0 && (y - 25.0).abs() < 1.0,
+                "{areas:?}"
+            );
         }
     }
 
@@ -302,12 +389,20 @@ mod tests {
         let mut m = doc.mutate();
         let html = m.create_element(qual_name!("html", html), vec![]);
         let body = m.create_element(qual_name!("body", html), vec![]);
-        let style = |value: &str| vec![Attribute { name: qual_name!("style"), value: value.to_string() }];
+        let style = |value: &str| {
+            vec![Attribute {
+                name: qual_name!("style"),
+                value: value.to_string(),
+            }]
+        };
         let dialog = m.create_element(
             qual_name!("div", html),
             style("position:fixed;left:200px;top:150px;width:200px;height:100px;transform:translate(-50%,-50%)"),
         );
-        let input = m.create_element(qual_name!("input", html), style("display:block;margin:0;border:2px solid;padding:3px"));
+        let input = m.create_element(
+            qual_name!("input", html),
+            style("display:block;margin:0;border:2px solid;padding:3px"),
+        );
         m.append_children(dialog, &[input]);
         m.append_children(body, &[dialog]);
         m.append_children(html, &[body]);
@@ -316,13 +411,20 @@ mod tests {
         doc.resolve(0.0);
 
         doc.set_focus_to(input);
-        EventDriver::new(&mut doc, crate::NoopEventHandler).handle_ui_event(UiEvent::Ime(E::Preedit("k".into(), Some((1, 1)))));
+        EventDriver::new(&mut doc, crate::NoopEventHandler)
+            .handle_ui_event(UiEvent::Ime(E::Preedit("k".into(), Some((1, 1)))));
         let areas = areas.lock().unwrap();
         assert!(areas.len() >= 2, "{:?}", calls.lock().unwrap());
         // At the field, then at the caret after "k" (untransformed: (205, 155)).
-        assert!((areas[0].0 - 105.0).abs() < 1.0 && (areas[0].1 - 105.0).abs() < 1.0, "{areas:?}");
+        assert!(
+            (areas[0].0 - 105.0).abs() < 1.0 && (areas[0].1 - 105.0).abs() < 1.0,
+            "{areas:?}"
+        );
         let (x, y, ..) = *areas.last().unwrap();
-        assert!(x > 106.0 && x < 125.0 && (y - 105.0).abs() < 1.0, "{areas:?}");
+        assert!(
+            x > 106.0 && x < 125.0 && (y - 105.0).abs() < 1.0,
+            "{areas:?}"
+        );
     }
 
     /// A rotation reverses the field's corners; the area still covers it.
@@ -340,12 +442,20 @@ mod tests {
         let mut m = doc.mutate();
         let html = m.create_element(qual_name!("html", html), vec![]);
         let body = m.create_element(qual_name!("body", html), vec![]);
-        let style = |value: &str| vec![Attribute { name: qual_name!("style"), value: value.to_string() }];
+        let style = |value: &str| {
+            vec![Attribute {
+                name: qual_name!("style"),
+                value: value.to_string(),
+            }]
+        };
         let dialog = m.create_element(
             qual_name!("div", html),
             style("position:fixed;left:100px;top:100px;width:200px;height:100px;transform:rotate(180deg)"),
         );
-        let input = m.create_element(qual_name!("input", html), style("display:block;margin:0;border:2px solid;padding:3px"));
+        let input = m.create_element(
+            qual_name!("input", html),
+            style("display:block;margin:0;border:2px solid;padding:3px"),
+        );
         m.append_children(dialog, &[input]);
         m.append_children(body, &[dialog]);
         m.append_children(html, &[body]);
@@ -357,7 +467,10 @@ mod tests {
         let areas = areas.lock().unwrap();
         // The field is now at the dialog's bottom, content box 190 wide.
         let (x, y, w, h) = areas[0];
-        assert!((x - 105.0).abs() < 1.0 && (w - 190.0).abs() < 1.0 && h > 0.0, "{areas:?}");
+        assert!(
+            (x - 105.0).abs() < 1.0 && (w - 190.0).abs() < 1.0 && h > 0.0,
+            "{areas:?}"
+        );
         assert!(y > 150.0 && (y + h - 195.0).abs() < 1.0, "{areas:?}");
     }
 
@@ -377,12 +490,20 @@ mod tests {
         let mut m = doc.mutate();
         let html = m.create_element(qual_name!("html", html), vec![]);
         let body = m.create_element(qual_name!("body", html), vec![]);
-        let style = |value: &str| vec![Attribute { name: qual_name!("style"), value: value.to_string() }];
+        let style = |value: &str| {
+            vec![Attribute {
+                name: qual_name!("style"),
+                value: value.to_string(),
+            }]
+        };
         let field = "display:block;margin:0;border:0;padding:0;width:100px";
         let spacer = m.create_element(qual_name!("div", html), style("height:400px"));
         let in_flow = m.create_element(qual_name!("input", html), style(field));
         let tall = m.create_element(qual_name!("div", html), style("height:2000px"));
-        let fixed = m.create_element(qual_name!("input", html), style(&format!("{field};position:fixed;left:10px;top:100px")));
+        let fixed = m.create_element(
+            qual_name!("input", html),
+            style(&format!("{field};position:fixed;left:10px;top:100px")),
+        );
         m.append_children(body, &[spacer, in_flow, tall, fixed]);
         m.append_children(html, &[body]);
         m.append_children(root, &[html]);
@@ -395,6 +516,9 @@ mod tests {
         let areas = areas.lock().unwrap();
         let body_top = areas[0].1 + 200.0 - 400.0;
         assert!((areas[0].1 - (body_top + 200.0)).abs() < 1.0, "{areas:?}");
-        assert!((areas[1].0 - 10.0).abs() < 1.0 && (areas[1].1 - 100.0).abs() < 1.0, "{areas:?}");
+        assert!(
+            (areas[1].0 - 10.0).abs() < 1.0 && (areas[1].1 - 100.0).abs() < 1.0,
+            "{areas:?}"
+        );
     }
 }

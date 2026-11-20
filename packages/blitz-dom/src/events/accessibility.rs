@@ -49,7 +49,10 @@ impl<Handler: EventHandler> EventDriver<'_, Handler> {
         if let Some(id) = target {
             // Any focusable area, as `element.focus()` allows (a roving
             // tabindex leaves most items at -1).
-            if !doc.nodes[id].element_data().is_some_and(|el| el.is_focusable_area()) {
+            if !doc.nodes[id]
+                .element_data()
+                .is_some_and(|el| el.is_focusable_area())
+            {
                 return false;
             }
             doc.set_keyboard_modality(true);
@@ -138,7 +141,10 @@ impl<Handler: EventHandler> EventDriver<'_, Handler> {
             return false;
         };
         if el.attr(local_name!("readonly")).is_some()
-            || el.attrs().iter().any(|attr| &*attr.name.local == "aria-readonly" && attr.value == "true")
+            || el
+                .attrs()
+                .iter()
+                .any(|attr| &*attr.name.local == "aria-readonly" && attr.value == "true")
         {
             return false;
         }
@@ -148,8 +154,10 @@ impl<Handler: EventHandler> EventDriver<'_, Handler> {
         if input.replace_all(&mut doc.font_ctx.lock().unwrap(), &mut doc.layout_ctx, text) {
             let value = input.value().to_string();
             doc.shell_provider.request_redraw();
-            self.queue
-                .push_back(DomEvent::new(target, DomEventData::Input(BlitzInputEvent { value })));
+            self.queue.push_back(DomEvent::new(
+                target,
+                DomEventData::Input(BlitzInputEvent { value }),
+            ));
         }
         true
     }
@@ -176,7 +184,11 @@ impl<Handler: EventHandler> EventDriver<'_, Handler> {
             .is_some_and(|el| RangeState::of(el).is_some());
         if native {
             return self.ax_set_range(target, |r| {
-                if up { r.value + r.small_step() } else { r.value - r.small_step() }
+                if up {
+                    r.value + r.small_step()
+                } else {
+                    r.value - r.small_step()
+                }
             });
         }
         if is_disabled(&self.doc.inner(), target) {
@@ -184,7 +196,11 @@ impl<Handler: EventHandler> EventDriver<'_, Handler> {
         }
         self.ax_focus(Some(target));
         self.process_queue();
-        let (key, code) = if up { (Key::Named(NamedKey::ArrowUp), Code::ArrowUp) } else { (Key::Named(NamedKey::ArrowDown), Code::ArrowDown) };
+        let (key, code) = if up {
+            (Key::Named(NamedKey::ArrowUp), Code::ArrowUp)
+        } else {
+            (Key::Named(NamedKey::ArrowDown), Code::ArrowDown)
+        };
         for state in [KeyState::Pressed, KeyState::Released] {
             let event = BlitzKeyEvent {
                 key: key.clone(),

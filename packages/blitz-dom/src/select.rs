@@ -81,7 +81,12 @@ impl Picker {
     /// A row's rectangle (CSS px, viewport coordinates), scrolled.
     pub fn row_rect(&self, i: usize) -> Rect {
         let y0 = self.rect.y0 + 1.0 + i as f64 * self.row_height - self.scroll;
-        Rect::new(self.rect.x0 + 1.0, y0, self.rect.x1 - 1.0, y0 + self.row_height)
+        Rect::new(
+            self.rect.x0 + 1.0,
+            y0,
+            self.rect.x1 - 1.0,
+            y0 + self.row_height,
+        )
     }
 
     fn scroll_into_view(&mut self, i: usize) {
@@ -121,7 +126,9 @@ impl Picker {
 pub fn is_drop_down(el: &ElementData) -> bool {
     el.name.local == local_name!("select")
         && el.attr(local_name!("multiple")).is_none()
-        && el.attr_parsed::<u32>(local_name!("size")).is_none_or(|s| s <= 1)
+        && el
+            .attr_parsed::<u32>(local_name!("size"))
+            .is_none_or(|s| s <= 1)
 }
 
 fn collapse_whitespace(s: &str) -> String {
@@ -147,13 +154,18 @@ impl BaseDocument {
     fn select_entries(&self, select: NodeId) -> Vec<(NodeId, bool, bool)> {
         let mut out = Vec::new();
         for &child in &self.nodes[select].children {
-            let Some(el) = self.nodes[child].element_data() else { continue };
+            let Some(el) = self.nodes[child].element_data() else {
+                continue;
+            };
             if el.name.local == local_name!("option") {
                 out.push((child, false, false));
             } else if el.name.local == local_name!("optgroup") {
                 out.push((child, true, false));
                 for &grandchild in &self.nodes[child].children {
-                    if self.nodes[grandchild].element_data().is_some_and(|e| e.name.local == local_name!("option")) {
+                    if self.nodes[grandchild]
+                        .element_data()
+                        .is_some_and(|e| e.name.local == local_name!("option"))
+                    {
                         out.push((grandchild, false, true));
                     }
                 }
@@ -164,24 +176,39 @@ impl BaseDocument {
 
     /// The select's options, in tree order.
     pub fn select_options(&self, select: NodeId) -> Vec<NodeId> {
-        self.select_entries(select).into_iter().filter(|e| !e.1).map(|e| e.0).collect()
+        self.select_entries(select)
+            .into_iter()
+            .filter(|e| !e.1)
+            .map(|e| e.0)
+            .collect()
     }
 
     /// An option's label: its `label` attribute, else its text (an optgroup:
     /// its `label`).
     pub fn option_label(&self, option: NodeId) -> String {
         let node = &self.nodes[option];
-        let attr = node.element_data().and_then(|el| el.attr(local_name!("label"))).filter(|l| !l.is_empty());
+        let attr = node
+            .element_data()
+            .and_then(|el| el.attr(local_name!("label")))
+            .filter(|l| !l.is_empty());
         match attr {
             Some(label) => collapse_whitespace(label),
-            None if node.element_data().is_some_and(|e| e.name.local == local_name!("optgroup")) => String::new(),
+            None if node
+                .element_data()
+                .is_some_and(|e| e.name.local == local_name!("optgroup")) =>
+            {
+                String::new()
+            }
             None => collapse_whitespace(&node.text_content()),
         }
     }
 
     /// An option's value: its `value` attribute, else its text.
     pub fn option_value(&self, option: NodeId) -> String {
-        match self.nodes[option].element_data().and_then(|el| el.attr(local_name!("value"))) {
+        match self.nodes[option]
+            .element_data()
+            .and_then(|el| el.attr(local_name!("value")))
+        {
             Some(value) => value.to_owned(),
             None => collapse_whitespace(&self.nodes[option].text_content()),
         }
@@ -189,11 +216,18 @@ impl BaseDocument {
 
     /// Disabled itself, or in a disabled `<optgroup>`.
     pub fn option_disabled(&self, option: NodeId) -> bool {
-        let disabled = |id: NodeId| self.nodes[id].element_data().is_some_and(|e| e.attr(local_name!("disabled")).is_some());
+        let disabled = |id: NodeId| {
+            self.nodes[id]
+                .element_data()
+                .is_some_and(|e| e.attr(local_name!("disabled")).is_some())
+        };
         disabled(option)
-            || self.nodes[option]
-                .parent
-                .is_some_and(|p| self.nodes[p].element_data().is_some_and(|e| e.name.local == local_name!("optgroup")) && disabled(p))
+            || self.nodes[option].parent.is_some_and(|p| {
+                self.nodes[p]
+                    .element_data()
+                    .is_some_and(|e| e.name.local == local_name!("optgroup"))
+                    && disabled(p)
+            })
     }
 
     /// The selected option: the last with a `selected` attribute, else the
@@ -203,14 +237,20 @@ impl BaseDocument {
         options
             .iter()
             .rev()
-            .find(|&&o| self.nodes[o].element_data().is_some_and(|e| e.attr(local_name!("selected")).is_some()))
+            .find(|&&o| {
+                self.nodes[o]
+                    .element_data()
+                    .is_some_and(|e| e.attr(local_name!("selected")).is_some())
+            })
             .or_else(|| options.iter().find(|&&o| !self.option_disabled(o)))
             .copied()
     }
 
     /// The select's value: the selected option's value (empty if none).
     pub fn select_value(&self, select: NodeId) -> String {
-        self.selected_option(select).map(|o| self.option_value(o)).unwrap_or_default()
+        self.selected_option(select)
+            .map(|o| self.option_value(o))
+            .unwrap_or_default()
     }
 
     /// The id of the open select, if one is open.
@@ -218,7 +258,12 @@ impl BaseDocument {
         self.open_select
     }
 
-    fn select_label_layout(&mut self, select: NodeId, text: &str, bold: bool) -> Option<Layout<TextBrush>> {
+    fn select_label_layout(
+        &mut self,
+        select: NodeId,
+        text: &str,
+        bold: bool,
+    ) -> Option<Layout<TextBrush>> {
         let style = self.nodes[select].primary_styles()?;
         let parley_style = crate::stylo_to_parley::style(select, &style);
         let scale = self.viewport.scale();
@@ -247,7 +292,9 @@ impl BaseDocument {
     /// or when its options or selection change). Marks it for layout if its
     /// width changed.
     pub(crate) fn refresh_select(&mut self, select: NodeId) {
-        if !self.nodes.contains_key(select) || !self.nodes[select].element_data().is_some_and(is_drop_down) {
+        if !self.nodes.contains_key(select)
+            || !self.nodes[select].element_data().is_some_and(is_drop_down)
+        {
             return;
         }
         let scale = self.viewport.scale();
@@ -258,10 +305,15 @@ impl BaseDocument {
                 widest = widest.max(layout.full_width() / scale);
             }
         }
-        let selected = self.selected_option(select).map(|o| self.option_label(o)).unwrap_or_default();
+        let selected = self
+            .selected_option(select)
+            .map(|o| self.option_label(o))
+            .unwrap_or_default();
         let label = self.select_label_layout(select, &selected, false);
         let line_height = label.as_ref().map_or(16.0, |l| l.height() / scale);
-        let Some(el) = self.nodes[select].element_data_mut() else { return };
+        let Some(el) = self.nodes[select].element_data_mut() else {
+            return;
+        };
         let crate::node::SpecialElementData::Select(data) = &mut el.special_data else {
             el.special_data = crate::node::SpecialElementData::Select(Box::default());
             return self.refresh_select(select);
@@ -287,7 +339,12 @@ impl BaseDocument {
 
     /// Selects an option (its `selected` attribute; the others lose theirs)
     /// and, if the selection changed, fires `input` then `change`.
-    pub(crate) fn choose_option(&mut self, select: NodeId, option: NodeId, dispatch_event: &mut dyn FnMut(DomEvent)) -> bool {
+    pub(crate) fn choose_option(
+        &mut self,
+        select: NodeId,
+        option: NodeId,
+        dispatch_event: &mut dyn FnMut(DomEvent),
+    ) -> bool {
         if self.option_disabled(option) || self.selected_option(select) == Some(option) {
             return false;
         }
@@ -304,8 +361,16 @@ impl BaseDocument {
         }
         self.refresh_select(select);
         let value = self.select_value(select);
-        dispatch_event(DomEvent::new(select, DomEventData::Input(BlitzInputEvent { value: value.clone() })));
-        dispatch_event(DomEvent::new(select, DomEventData::Change(BlitzInputEvent { value })));
+        dispatch_event(DomEvent::new(
+            select,
+            DomEventData::Input(BlitzInputEvent {
+                value: value.clone(),
+            }),
+        ));
+        dispatch_event(DomEvent::new(
+            select,
+            DomEventData::Change(BlitzInputEvent { value }),
+        ));
         true
     }
 
@@ -314,18 +379,34 @@ impl BaseDocument {
         if self.open_select.is_some() {
             self.close_drop_down();
         }
-        let Some(r) = self.get_client_bounding_rect(select) else { return };
+        let Some(r) = self.get_client_bounding_rect(select) else {
+            return;
+        };
         let scale = self.viewport.scale();
-        let (vw, vh) = (self.viewport.window_size.0 as f64 / scale as f64, self.viewport.window_size.1 as f64 / scale as f64);
+        let (vw, vh) = (
+            self.viewport.window_size.0 as f64 / scale as f64,
+            self.viewport.window_size.1 as f64 / scale as f64,
+        );
         let selected = self.selected_option(select);
         let mut rows = Vec::new();
         let mut widest = 0.0_f64;
         for (node, group_label, indented) in self.select_entries(select) {
             let label_text = self.option_label(node);
-            let Some(label) = self.select_label_layout(select, &label_text, group_label) else { continue };
-            widest = widest.max(label.full_width() as f64 / scale as f64 + if indented { PICKER_INDENT } else { 0.0 });
+            let Some(label) = self.select_label_layout(select, &label_text, group_label) else {
+                continue;
+            };
+            widest = widest.max(
+                label.full_width() as f64 / scale as f64
+                    + if indented { PICKER_INDENT } else { 0.0 },
+            );
             let disabled = !group_label && self.option_disabled(node);
-            rows.push(PickerRow { node, label, group_label, disabled, indented });
+            rows.push(PickerRow {
+                node,
+                label,
+                group_label,
+                disabled,
+                indented,
+            });
         }
         if rows.is_empty() {
             return;
@@ -343,8 +424,16 @@ impl BaseDocument {
             (r.y - h, h)
         };
         let x = r.x.min(vw - width).max(0.0);
-        let highlighted = rows.iter().position(|row| Some(row.node) == selected && !row.group_label);
-        let mut picker = Picker { rect: Rect::new(x, y, x + width, y + height), rows, row_height, highlighted, scroll: 0.0 };
+        let highlighted = rows
+            .iter()
+            .position(|row| Some(row.node) == selected && !row.group_label);
+        let mut picker = Picker {
+            rect: Rect::new(x, y, x + width, y + height),
+            rows,
+            row_height,
+            highlighted,
+            scroll: 0.0,
+        };
         if let Some(i) = highlighted {
             picker.scroll_into_view(i);
         }
@@ -371,7 +460,9 @@ impl BaseDocument {
     pub fn open_picker(&self) -> Option<(NodeId, &Picker)> {
         let select = self.open_select?;
         match &self.nodes.get(select)?.element_data()?.special_data {
-            crate::node::SpecialElementData::Select(data) => data.picker.as_ref().map(|p| (select, p)),
+            crate::node::SpecialElementData::Select(data) => {
+                data.picker.as_ref().map(|p| (select, p))
+            }
             _ => None,
         }
     }
@@ -384,7 +475,9 @@ impl BaseDocument {
     /// The open picker highlights the option under the pointer (client CSS
     /// px). Returns whether the pointer is over the picker.
     pub(crate) fn picker_hover(&mut self, x: f64, y: f64) -> bool {
-        let Some(picker) = self.open_picker_mut() else { return false };
+        let Some(picker) = self.open_picker_mut() else {
+            return false;
+        };
         if !picker.rect.contains(kurbo::Point::new(x, y)) {
             return false;
         }
@@ -399,7 +492,9 @@ impl BaseDocument {
 
     /// Scrolls the open picker (CSS px). Returns whether the point is over it.
     pub(crate) fn picker_scroll(&mut self, x: f64, y: f64, dy: f64) -> bool {
-        let Some(picker) = self.open_picker_mut() else { return false };
+        let Some(picker) = self.open_picker_mut() else {
+            return false;
+        };
         if !picker.rect.contains(kurbo::Point::new(x, y)) {
             return false;
         }
@@ -410,12 +505,22 @@ impl BaseDocument {
 
     /// A release over the open picker: an enabled option is chosen and the
     /// picker closes. Returns whether the point is over the picker.
-    pub(crate) fn picker_release(&mut self, x: f64, y: f64, dispatch_event: &mut dyn FnMut(DomEvent)) -> bool {
-        let Some((select, picker)) = self.open_picker() else { return false };
+    pub(crate) fn picker_release(
+        &mut self,
+        x: f64,
+        y: f64,
+        dispatch_event: &mut dyn FnMut(DomEvent),
+    ) -> bool {
+        let Some((select, picker)) = self.open_picker() else {
+            return false;
+        };
         if !picker.rect.contains(kurbo::Point::new(x, y)) {
             return false;
         }
-        let chosen = picker.option_at(x, y).filter(|&i| !picker.rows[i].disabled).map(|i| picker.rows[i].node);
+        let chosen = picker
+            .option_at(x, y)
+            .filter(|&i| !picker.rows[i].disabled)
+            .map(|i| picker.rows[i].node);
         if let Some(option) = chosen {
             self.close_drop_down();
             self.choose_option(select, option, dispatch_event);
@@ -425,8 +530,15 @@ impl BaseDocument {
 
     /// Keys while a select's picker is open. Returns whether the key was used
     /// (the page doesn't see it).
-    pub(crate) fn picker_key(&mut self, key: &Key, alt: bool, dispatch_event: &mut dyn FnMut(DomEvent)) -> bool {
-        let Some((select, _)) = self.open_picker() else { return false };
+    pub(crate) fn picker_key(
+        &mut self,
+        key: &Key,
+        alt: bool,
+        dispatch_event: &mut dyn FnMut(DomEvent),
+    ) -> bool {
+        let Some((select, _)) = self.open_picker() else {
+            return false;
+        };
         let step = |doc: &mut Self, f: &dyn Fn(&Picker) -> Option<usize>| {
             if let Some(picker) = doc.open_picker_mut() {
                 if let Some(i) = f(picker) {
@@ -438,7 +550,9 @@ impl BaseDocument {
         };
         let page = |p: &Picker| ((p.rect.height() - 2.0) / p.row_height).floor().max(1.0) as isize;
         match key {
-            Key::Named(NamedKey::ArrowUp) | Key::Named(NamedKey::ArrowDown) if alt => self.close_drop_down(),
+            Key::Named(NamedKey::ArrowUp) | Key::Named(NamedKey::ArrowDown) if alt => {
+                self.close_drop_down()
+            }
             Key::Named(NamedKey::F4) | Key::Named(NamedKey::Escape) => self.close_drop_down(),
             Key::Named(NamedKey::ArrowDown) => step(self, &|p| p.next_option(p.highlighted, 1)),
             Key::Named(NamedKey::ArrowUp) => step(self, &|p| p.next_option(p.highlighted, -1)),
@@ -458,8 +572,13 @@ impl BaseDocument {
                 }
                 at
             }),
-            Key::Named(NamedKey::Enter) | Key::Character(_) if matches!(key, Key::Named(NamedKey::Enter)) || *key == Key::Character(" ".into()) => {
-                let chosen = self.open_picker().and_then(|(_, p)| p.highlighted.map(|i| p.rows[i].node));
+            Key::Named(NamedKey::Enter) | Key::Character(_)
+                if matches!(key, Key::Named(NamedKey::Enter))
+                    || *key == Key::Character(" ".into()) =>
+            {
+                let chosen = self
+                    .open_picker()
+                    .and_then(|(_, p)| p.highlighted.map(|i| p.rows[i].node));
                 self.close_drop_down();
                 if let Some(option) = chosen {
                     self.choose_option(select, option, dispatch_event);
@@ -474,13 +593,20 @@ impl BaseDocument {
                 let c = c.to_lowercase();
                 let labels: Vec<String> = self
                     .open_picker()
-                    .map(|(_, p)| p.rows.iter().map(|r| self.option_label(r.node).to_lowercase()).collect())
+                    .map(|(_, p)| {
+                        p.rows
+                            .iter()
+                            .map(|r| self.option_label(r.node).to_lowercase())
+                            .collect()
+                    })
                     .unwrap_or_default();
                 step(self, &|p| {
                     let n = p.rows.len();
                     let start = p.highlighted.map_or(0, |i| i + 1);
                     (0..n).map(|k| (start + k) % n).find(|&i| {
-                        !p.rows[i].group_label && !p.rows[i].disabled && labels[i].starts_with(c.as_str())
+                        !p.rows[i].group_label
+                            && !p.rows[i].disabled
+                            && labels[i].starts_with(c.as_str())
                     })
                 });
             }
@@ -493,9 +619,21 @@ impl BaseDocument {
     /// Space open it; the arrows, Home and End change the selection, and a
     /// letter picks the next option it starts, as on Windows. Returns
     /// whether the key was used.
-    pub(crate) fn select_key(&mut self, select: NodeId, key: &Key, alt: bool, dispatch_event: &mut dyn FnMut(DomEvent)) -> bool {
-        let enabled: Vec<NodeId> = self.select_options(select).into_iter().filter(|&o| !self.option_disabled(o)).collect();
-        let current = self.selected_option(select).and_then(|s| enabled.iter().position(|&o| o == s));
+    pub(crate) fn select_key(
+        &mut self,
+        select: NodeId,
+        key: &Key,
+        alt: bool,
+        dispatch_event: &mut dyn FnMut(DomEvent),
+    ) -> bool {
+        let enabled: Vec<NodeId> = self
+            .select_options(select)
+            .into_iter()
+            .filter(|&o| !self.option_disabled(o))
+            .collect();
+        let current = self
+            .selected_option(select)
+            .and_then(|s| enabled.iter().position(|&o| o == s));
         let target = match key {
             Key::Named(NamedKey::ArrowDown) | Key::Named(NamedKey::ArrowUp) if alt => {
                 self.open_drop_down(select);
@@ -509,15 +647,24 @@ impl BaseDocument {
                 self.open_drop_down(select);
                 return true;
             }
-            Key::Named(NamedKey::ArrowDown) | Key::Named(NamedKey::ArrowRight) => current.map_or(Some(0), |i| Some((i + 1).min(enabled.len().saturating_sub(1)))),
-            Key::Named(NamedKey::ArrowUp) | Key::Named(NamedKey::ArrowLeft) => current.map_or(Some(0), |i| Some(i.saturating_sub(1))),
+            Key::Named(NamedKey::ArrowDown) | Key::Named(NamedKey::ArrowRight) => current
+                .map_or(Some(0), |i| {
+                    Some((i + 1).min(enabled.len().saturating_sub(1)))
+                }),
+            Key::Named(NamedKey::ArrowUp) | Key::Named(NamedKey::ArrowLeft) => {
+                current.map_or(Some(0), |i| Some(i.saturating_sub(1)))
+            }
             Key::Named(NamedKey::Home) => Some(0),
             Key::Named(NamedKey::End) => Some(enabled.len().saturating_sub(1)),
             Key::Character(c) => {
                 let c = c.to_lowercase();
                 let n = enabled.len();
                 let start = current.map_or(0, |i| i + 1);
-                (0..n).map(|k| (start + k) % n).find(|&i| self.option_label(enabled[i]).to_lowercase().starts_with(c.as_str()))
+                (0..n).map(|k| (start + k) % n).find(|&i| {
+                    self.option_label(enabled[i])
+                        .to_lowercase()
+                        .starts_with(c.as_str())
+                })
             }
             _ => return false,
         };
@@ -555,7 +702,10 @@ mod tests {
         let select = m.create_element(qual_name!("select", html), vec![]);
         let mut ids = Vec::new();
         for (text, attrs) in options {
-            let o = m.create_element(qual_name!("option", html), attrs.iter().map(|(k, v)| attr(k, v)).collect());
+            let o = m.create_element(
+                qual_name!("option", html),
+                attrs.iter().map(|(k, v)| attr(k, v)).collect(),
+            );
             let t = m.create_text_node(text);
             m.append_children(o, &[t]);
             ids.push(o);
@@ -593,23 +743,44 @@ mod tests {
         assert_eq!(doc.selected_option(select), Some(o[1]));
         assert_eq!(doc.select_value(select), "2");
         assert_eq!(doc.option_value(o[2]), "Three");
-        let (doc, select, o) = select_doc(&[("A", &[("selected", "")]), ("B", &[("selected", "")]), ("C", &[])]);
+        let (doc, select, o) = select_doc(&[
+            ("A", &[("selected", "")]),
+            ("B", &[("selected", "")]),
+            ("C", &[]),
+        ]);
         // The last `selected` wins.
         assert_eq!(doc.selected_option(select), Some(o[1]));
     }
 
     #[test]
     fn keys_on_a_closed_select_change_it_and_fire_input_then_change() {
-        let (mut doc, select, o) = select_doc(&[("Apple", &[]), ("Banana", &[("disabled", "")]), ("Cherry", &[])]);
+        let (mut doc, select, o) = select_doc(&[
+            ("Apple", &[]),
+            ("Banana", &[("disabled", "")]),
+            ("Cherry", &[]),
+        ]);
         let fired = events(|d| {
             doc.select_key(select, &Key::Named(NamedKey::ArrowDown), false, d);
         });
-        assert_eq!(doc.selected_option(select), Some(o[2]), "skips the disabled option");
-        assert_eq!(fired, [("input".to_owned(), "Cherry".to_owned()), ("change".to_owned(), "Cherry".to_owned())]);
+        assert_eq!(
+            doc.selected_option(select),
+            Some(o[2]),
+            "skips the disabled option"
+        );
+        assert_eq!(
+            fired,
+            [
+                ("input".to_owned(), "Cherry".to_owned()),
+                ("change".to_owned(), "Cherry".to_owned())
+            ]
+        );
         let fired = events(|d| {
             doc.select_key(select, &Key::Named(NamedKey::ArrowDown), false, d);
         });
-        assert!(fired.is_empty(), "already at the last option: nothing fires");
+        assert!(
+            fired.is_empty(),
+            "already at the last option: nothing fires"
+        );
         events(|d| {
             doc.select_key(select, &Key::Character("a".into()), false, d);
         });
@@ -623,7 +794,11 @@ mod tests {
             assert!(doc.select_key(select, &Key::Named(NamedKey::F4), false, d));
         });
         let (_, picker) = doc.open_picker().expect("open");
-        assert_eq!(picker.highlighted, Some(0), "the selected option is highlighted");
+        assert_eq!(
+            picker.highlighted,
+            Some(0),
+            "the selected option is highlighted"
+        );
         let r = picker.row_rect(2);
         let fired = events(|d| {
             doc.picker_key(&Key::Named(NamedKey::ArrowDown), false, d);

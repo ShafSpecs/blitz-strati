@@ -31,7 +31,12 @@ impl ElementCx<'_, '_> {
 
         if let Some(label) = &data.label {
             let y = content.y0 + ((content.height() - label.height() as f64) / 2.0).max(0.0);
-            let room = Rect::new(content.x0, content.y0, (content.x1 - arrow).max(content.x0), content.y1);
+            let room = Rect::new(
+                content.x0,
+                content.y0,
+                (content.x1 - arrow).max(content.x0),
+                content.y1,
+            );
             scene.push_clip_layer(Fill::NonZero, self.transform, &room);
             crate::text::fill_text_in_color(
                 scene,
@@ -43,10 +48,13 @@ impl ElementCx<'_, '_> {
             scene.pop_layer();
         }
 
-        let appearance_none =
-            self.style.get_box().clone_appearance() == style::values::specified::box_::Appearance::None;
+        let appearance_none = self.style.get_box().clone_appearance()
+            == style::values::specified::box_::Appearance::None;
         if !appearance_none {
-            let (cx, cy) = (content.x1 - arrow / 2.0, content.y0 + content.height() / 2.0);
+            let (cx, cy) = (
+                content.x1 - arrow / 2.0,
+                content.y0 + content.height() / 2.0,
+            );
             let w = (font_size as f64 * 0.55 * self.scale).round();
             let h = w * 0.55;
             let mut chevron = BezPath::new();
@@ -110,7 +118,11 @@ impl BlitzDomPainter<'_, '_> {
             } else {
                 PICKER_TEXT
             };
-            let indent = if row.indented { blitz_dom::PICKER_INDENT } else { 0.0 };
+            let indent = if row.indented {
+                blitz_dom::PICKER_INDENT
+            } else {
+                0.0
+            };
             let label_height = row.label.height() as f64 / scale;
             let x = r.x0 + blitz_dom::PICKER_PADDING + indent;
             let y = r.y0 + ((r.height() - label_height) / 2.0).max(0.0);

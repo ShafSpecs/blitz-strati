@@ -73,8 +73,12 @@ pub(crate) fn handle_key_or_input_event<F: FnMut(DomEvent)>(
         // A focused drop-down select: keys open it or change its selection.
         if let KeyboardOrTextInputEvent::KeyPress(key_event) = &event
             && key_event.state.is_pressed()
-            && !key_event.modifiers.intersects(Modifiers::CONTROL | Modifiers::META)
-            && doc.nodes[node_id].element_data().is_some_and(crate::is_drop_down)
+            && !key_event
+                .modifiers
+                .intersects(Modifiers::CONTROL | Modifiers::META)
+            && doc.nodes[node_id]
+                .element_data()
+                .is_some_and(crate::is_drop_down)
         {
             let alt = key_event.modifiers.contains(Modifiers::ALT);
             doc.select_key(node_id, &key_event.key, alt, &mut dispatch_event);
@@ -85,12 +89,20 @@ pub(crate) fn handle_key_or_input_event<F: FnMut(DomEvent)>(
         // range, Home/End go to the ends.
         if let KeyboardOrTextInputEvent::KeyPress(key_event) = &event
             && key_event.state.is_pressed()
-            && !key_event.modifiers.intersects(Modifiers::CONTROL | Modifiers::ALT | Modifiers::META)
-            && let Some(range) = doc.nodes[node_id].element_data().and_then(crate::RangeState::of)
+            && !key_event
+                .modifiers
+                .intersects(Modifiers::CONTROL | Modifiers::ALT | Modifiers::META)
+            && let Some(range) = doc.nodes[node_id]
+                .element_data()
+                .and_then(crate::RangeState::of)
         {
             let value = match &key_event.key {
-                Key::Named(NamedKey::ArrowRight) | Key::Named(NamedKey::ArrowUp) => Some(range.value + range.small_step()),
-                Key::Named(NamedKey::ArrowLeft) | Key::Named(NamedKey::ArrowDown) => Some(range.value - range.small_step()),
+                Key::Named(NamedKey::ArrowRight) | Key::Named(NamedKey::ArrowUp) => {
+                    Some(range.value + range.small_step())
+                }
+                Key::Named(NamedKey::ArrowLeft) | Key::Named(NamedKey::ArrowDown) => {
+                    Some(range.value - range.small_step())
+                }
                 Key::Named(NamedKey::PageUp) => Some(range.value + range.large_step()),
                 Key::Named(NamedKey::PageDown) => Some(range.value - range.large_step()),
                 Key::Named(NamedKey::Home) => Some(range.min),

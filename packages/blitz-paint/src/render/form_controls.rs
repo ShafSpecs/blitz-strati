@@ -13,7 +13,9 @@ impl ElementCx<'_, '_> {
         }
         // `appearance: none`: the author styles the box; nothing of the
         // native control is drawn.
-        if self.style.get_box().clone_appearance() == style::values::specified::box_::Appearance::None {
+        if self.style.get_box().clone_appearance()
+            == style::values::specified::box_::Appearance::None
+        {
             return;
         }
         if let Some(range) = blitz_dom::RangeState::of(self.element) {
@@ -64,7 +66,11 @@ impl ElementCx<'_, '_> {
         let disabled = self.node.attr(local_name!("disabled")).is_some();
         // accent-color isn't available from Stylo's servo build: the default
         // accent, as Chromium's.
-        let accent = if disabled { Color::from_rgba8(160, 160, 160, 255) } else { Color::from_rgba8(0, 117, 255, 255) };
+        let accent = if disabled {
+            Color::from_rgba8(160, 160, 160, 255)
+        } else {
+            Color::from_rgba8(0, 117, 255, 255)
+        };
         let track_bg = Color::from_rgba8(128, 128, 128, 110);
         let scale = self.scale;
         let content = self.frame.content_box;

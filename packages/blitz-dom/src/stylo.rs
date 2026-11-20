@@ -10,6 +10,7 @@ use crate::StyleThreading;
 use crate::layout::damage::compute_layout_damage;
 use crate::node::Node;
 use crate::node::NodeData;
+use blitz_traits::events::{BlitzAnimationEvent, DomEventData};
 use markup5ever::{LocalName, LocalNameStaticSet, Namespace, NamespaceStaticSet, local_name, ns};
 use selectors::bloom::BLOOM_HASH_MASK;
 use selectors::{
@@ -21,7 +22,6 @@ use selectors::{
 use style::CaseSensitivityExt;
 use style::animation::AnimationSetKey;
 use style::animation::AnimationState;
-use blitz_traits::events::{BlitzAnimationEvent, DomEventData};
 use style::applicable_declarations::ApplicableDeclarationBlock;
 use style::bloom::each_relevant_element_hash;
 use style::color::AbsoluteColor;
@@ -109,16 +109,20 @@ impl crate::document::BaseDocument {
             for animation in set.animations.iter_mut() {
                 if animation.state == AnimationState::Pending && animation.started_at <= now {
                     animation.state = AnimationState::Running;
-                    self.animation_events
-                        .push((node_id, DomEventData::AnimationStart(event(animation.name.to_string(), 0.0))));
+                    self.animation_events.push((
+                        node_id,
+                        DomEventData::AnimationStart(event(animation.name.to_string(), 0.0)),
+                    ));
                 }
                 animation.iterate_if_necessary(now);
 
                 if animation.state == AnimationState::Running && animation.has_ended(now) {
                     animation.state = AnimationState::Finished;
                     let elapsed = (now - animation.started_at).max(0.0);
-                    self.animation_events
-                        .push((node_id, DomEventData::AnimationEnd(event(animation.name.to_string(), elapsed))));
+                    self.animation_events.push((
+                        node_id,
+                        DomEventData::AnimationEnd(event(animation.name.to_string(), elapsed)),
+                    ));
                 }
             }
 
@@ -128,9 +132,16 @@ impl crate::document::BaseDocument {
                 }
                 if transition.state == AnimationState::Running && transition.has_ended(now) {
                     transition.state = AnimationState::Finished;
-                    let property = transition.property_animation.property_id().name().to_string();
+                    let property = transition
+                        .property_animation
+                        .property_id()
+                        .name()
+                        .to_string();
                     let elapsed = (now - transition.start_time).max(0.0);
-                    self.animation_events.push((node_id, DomEventData::TransitionEnd(event(property, elapsed))));
+                    self.animation_events.push((
+                        node_id,
+                        DomEventData::TransitionEnd(event(property, elapsed)),
+                    ));
                 }
             }
         }
@@ -180,17 +191,41 @@ impl crate::document::BaseDocument {
         let mut sets = self.animations.sets.write();
         for (key, set) in sets.iter_mut() {
             let node_id = NodeId::from_u64(key.node.id() as u64);
-            if self.nodes.get(node_id).is_some_and(|n| n.flags.is_in_document()) {
-                for animation in set.animations.iter().filter(|a| a.state == AnimationState::Canceled) {
+            if self
+                .nodes
+                .get(node_id)
+                .is_some_and(|n| n.flags.is_in_document())
+            {
+                for animation in set
+                    .animations
+                    .iter()
+                    .filter(|a| a.state == AnimationState::Canceled)
+                {
                     self.animation_events.push((
                         node_id,
-                        DomEventData::AnimationCancel(BlitzAnimationEvent { name: animation.name.to_string(), elapsed: 0.0 }),
+                        DomEventData::AnimationCancel(BlitzAnimationEvent {
+                            name: animation.name.to_string(),
+                            elapsed: 0.0,
+                        }),
                     ));
                 }
-                for transition in set.transitions.iter().filter(|t| t.state == AnimationState::Canceled) {
-                    let property = transition.property_animation.property_id().name().to_string();
-                    self.animation_events
-                        .push((node_id, DomEventData::TransitionCancel(BlitzAnimationEvent { name: property, elapsed: 0.0 })));
+                for transition in set
+                    .transitions
+                    .iter()
+                    .filter(|t| t.state == AnimationState::Canceled)
+                {
+                    let property = transition
+                        .property_animation
+                        .property_id()
+                        .name()
+                        .to_string();
+                    self.animation_events.push((
+                        node_id,
+                        DomEventData::TransitionCancel(BlitzAnimationEvent {
+                            name: property,
+                            elapsed: 0.0,
+                        }),
+                    ));
                 }
             }
             set.clear_canceled_animations();

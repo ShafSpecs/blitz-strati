@@ -668,13 +668,19 @@ impl ElementCx<'_, '_> {
             return;
         }
         let offset = outline.outline_offset.to_f64_px() * self.scale;
-        let outer_box = self.frame.border_box.inflate(offset + width, offset + width);
+        let outer_box = self
+            .frame
+            .border_box
+            .inflate(offset + width, offset + width);
         if outer_box.width() <= 0.0 || outer_box.height() <= 0.0 {
             return;
         }
         let grow = |r: Vec2| {
             if r.x > 0.0 && r.y > 0.0 {
-                Vec2::new((r.x + offset + width).max(0.0), (r.y + offset + width).max(0.0))
+                Vec2::new(
+                    (r.x + offset + width).max(0.0),
+                    (r.y + offset + width).max(0.0),
+                )
             } else {
                 Vec2::ZERO
             }

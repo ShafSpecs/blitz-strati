@@ -125,13 +125,19 @@ pub(crate) fn handle_dom_event<F: FnMut(DomEvent)>(
     let widget_origin = {
         let origin = doc.nodes[target_node_id].content_box_origin();
         let scroll = doc.viewport_scroll();
-        Point { x: origin.x - scroll.x as f32, y: origin.y - scroll.y as f32 }
+        Point {
+            x: origin.x - scroll.x as f32,
+            y: origin.y - scroll.y as f32,
+        }
     };
     // Page coordinates include the document scroll; cancel it so widgets get local page coords.
     #[cfg(feature = "custom-widget")]
     let widget_page_scroll = {
         let scroll = doc.viewport_scroll();
-        Point { x: -scroll.x, y: -scroll.y }
+        Point {
+            x: -scroll.x,
+            y: -scroll.y,
+        }
     };
     let node = &mut doc.nodes[target_node_id];
     let pos = node.absolute_position(0.0, 0.0);

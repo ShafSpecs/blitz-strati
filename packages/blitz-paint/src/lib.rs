@@ -124,7 +124,8 @@ pub fn paint_scene(
 fn has_custom_widgets(doc: &BaseDocument) -> bool {
     !doc.custom_widget_node_ids().is_empty()
         || doc.sub_document_node_ids().into_iter().any(|id| {
-            doc.subdoc(id).is_some_and(|subdoc| has_custom_widgets(&subdoc.inner()))
+            doc.subdoc(id)
+                .is_some_and(|subdoc| has_custom_widgets(&subdoc.inner()))
         })
 }
 
@@ -142,7 +143,8 @@ fn build_custom_widget_scenes(
     let custom_widget_node_ids = doc.custom_widget_node_ids();
     for node_id in custom_widget_node_ids.into_iter() {
         if let Some(bounds) = geometry.get(&(doc_id, node_id))
-            && let Some(scene) = process_custom_widget_node(doc, render_ctx, node_id, scale, *bounds)
+            && let Some(scene) =
+                process_custom_widget_node(doc, render_ctx, node_id, scale, *bounds)
         {
             custom_widget_scenes.insert((doc_id, node_id), (scene, bounds.transform));
         }
@@ -153,7 +155,13 @@ fn build_custom_widget_scenes(
     for node_id in sub_document_node_ids.into_iter() {
         if let Some(sub_doc) = doc.get_node_mut(node_id).and_then(|node| node.subdoc_mut()) {
             let mut inner = sub_doc.inner_mut();
-            build_custom_widget_scenes(custom_widget_scenes, &mut inner, render_ctx, scale, geometry);
+            build_custom_widget_scenes(
+                custom_widget_scenes,
+                &mut inner,
+                render_ctx,
+                scale,
+                geometry,
+            );
         }
     }
 }

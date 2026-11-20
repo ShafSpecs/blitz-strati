@@ -3,8 +3,8 @@ mod border;
 mod box_shadow;
 mod clip_path;
 mod form_controls;
-mod select;
 mod mask;
+mod select;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -1311,7 +1311,9 @@ impl ElementCx<'_, '_> {
         if let Some(bounds) = self.widget_geometry {
             if self.element.custom_widget_data().is_some() {
                 let geometry = crate::WidgetGeometry::new(self.transform, self.frame.content_box);
-                bounds.borrow_mut().insert((self.dom.id(), self.node.id), geometry);
+                bounds
+                    .borrow_mut()
+                    .insert((self.dom.id(), self.node.id), geometry);
             }
             return;
         }

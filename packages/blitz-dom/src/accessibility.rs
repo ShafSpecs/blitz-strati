@@ -20,9 +20,11 @@ impl BaseDocument {
 
         self.visit(|node_id, node| {
             if node.is_hidden_from_accessibility_tree()
-                || node.parent.and_then(|p| nodes.get(&p)).is_some_and(|(_, parent): &(_, AccessKitNode)| {
-                    is_text_input_role(parent.role()) && parent.value().is_some()
-                })
+                || node.parent.and_then(|p| nodes.get(&p)).is_some_and(
+                    |(_, parent): &(_, AccessKitNode)| {
+                        is_text_input_role(parent.role()) && parent.value().is_some()
+                    },
+                )
                 || node
                     .parent
                     .map(|p| hidden_nodes.contains(&p))
@@ -91,11 +93,21 @@ impl BaseDocument {
 
         // An open select's picker: its options, where they're drawn.
         if let Some((select, picker)) = self.open_picker() {
-            for (i, row) in picker.rows.iter().enumerate().filter(|(_, r)| !r.group_label) {
+            for (i, row) in picker
+                .rows
+                .iter()
+                .enumerate()
+                .filter(|(_, r)| !r.group_label)
+            {
                 let mut option = AccessKitNode::new(Role::ListBoxOption);
                 option.set_label(self.option_label(row.node));
                 let r = picker.row_rect(i);
-                option.set_bounds(Rect { x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1 });
+                option.set_bounds(Rect {
+                    x0: r.x0,
+                    y0: r.y0,
+                    x1: r.x1,
+                    y1: r.y1,
+                });
                 option.set_selected(picker.highlighted == Some(i));
                 if row.disabled {
                     option.set_disabled();
@@ -116,9 +128,13 @@ impl BaseDocument {
             .collect();
         let runs = add_input_text_runs(&mut nodes);
         for (input_id, run_id) in runs {
-            let Some(input) = self.get_node(BlitzDomNodeId::from_u64(input_id.0))
+            let Some(input) = self
+                .get_node(BlitzDomNodeId::from_u64(input_id.0))
                 .and_then(|node| node.element_data())
-                .and_then(|element| element.text_input_data()) else { continue };
+                .and_then(|element| element.text_input_data())
+            else {
+                continue;
+            };
             let selection = input.editor.raw_selection();
             let value = input.editor.raw_text();
             let position = |byte_index| accesskit::TextPosition {
@@ -253,7 +269,17 @@ impl BaseDocument {
 }
 
 fn is_text_input_role(role: Role) -> bool {
-    matches!(role, Role::TextInput | Role::MultilineTextInput | Role::SearchInput | Role::PasswordInput | Role::EmailInput | Role::NumberInput | Role::PhoneNumberInput | Role::UrlInput)
+    matches!(
+        role,
+        Role::TextInput
+            | Role::MultilineTextInput
+            | Role::SearchInput
+            | Role::PasswordInput
+            | Role::EmailInput
+            | Role::NumberInput
+            | Role::PhoneNumberInput
+            | Role::UrlInput
+    )
 }
 
 fn add_input_text_runs(nodes: &mut Vec<(NodeId, AccessKitNode)>) -> Vec<(NodeId, NodeId)> {
@@ -286,10 +312,13 @@ fn add_input_text_runs(nodes: &mut Vec<(NodeId, AccessKitNode)>) -> Vec<(NodeId,
 
 fn text_character_index(value: &str, byte_index: usize) -> usize {
     let mut offset = 0;
-    text_character_lengths(value).into_iter().take_while(|length| {
-        offset += usize::from(*length);
-        offset <= byte_index
-    }).count()
+    text_character_lengths(value)
+        .into_iter()
+        .take_while(|length| {
+            offset += usize::from(*length);
+            offset <= byte_index
+        })
+        .count()
 }
 
 fn text_character_lengths(value: &str) -> Vec<u8> {
@@ -379,19 +408,30 @@ impl BaseDocument {
         // A drop-down select: its value is the selected option's label; it
         // expands to its picker.
         if crate::is_drop_down(element) {
-            let label = self.selected_option(node_id).map(|o| self.option_label(o)).unwrap_or_default();
+            let label = self
+                .selected_option(node_id)
+                .map(|o| self.option_label(o))
+                .unwrap_or_default();
             builder.set_value(label);
             let open = self.open_select == Some(node_id);
             builder.set_expanded(open);
             if !disabled {
-                builder.add_action(if open { Action::Collapse } else { Action::Expand });
+                builder.add_action(if open {
+                    Action::Collapse
+                } else {
+                    Action::Expand
+                });
             }
         }
         if let Some(expanded) = aria("aria-expanded") {
             let expanded = expanded == "true";
             builder.set_expanded(expanded);
             if !disabled {
-                builder.add_action(if expanded { Action::Collapse } else { Action::Expand });
+                builder.add_action(if expanded {
+                    Action::Collapse
+                } else {
+                    Action::Expand
+                });
             }
         }
         match aria("aria-haspopup") {
@@ -408,7 +448,8 @@ impl BaseDocument {
         if aria("aria-modal") == Some("true") {
             builder.set_modal();
         }
-        if element.attr(local_name!("required")).is_some() || aria("aria-required") == Some("true") {
+        if element.attr(local_name!("required")).is_some() || aria("aria-required") == Some("true")
+        {
             builder.set_required();
         }
 
@@ -443,7 +484,9 @@ impl BaseDocument {
             if let Some(placeholder) = element.attr(local_name!("placeholder")) {
                 builder.set_placeholder(placeholder);
             }
-            if element.attr(local_name!("readonly")).is_some() || aria("aria-readonly") == Some("true") {
+            if element.attr(local_name!("readonly")).is_some()
+                || aria("aria-readonly") == Some("true")
+            {
                 builder.set_read_only();
             } else if !disabled {
                 builder.add_action(Action::SetValue);
@@ -464,7 +507,11 @@ impl BaseDocument {
             }
         } else if matches!(
             role,
-            Role::Slider | Role::SpinButton | Role::ScrollBar | Role::ProgressIndicator | Role::Meter
+            Role::Slider
+                | Role::SpinButton
+                | Role::ScrollBar
+                | Role::ProgressIndicator
+                | Role::Meter
         ) {
             let number = |name: &str| aria(name).and_then(|v| v.trim().parse::<f64>().ok());
             if let Some(now) = number("aria-valuenow") {
@@ -522,7 +569,11 @@ impl BaseDocument {
                 return Some(name);
             }
         }
-        if let Some(name) = element.attr(local_name!("aria-label")).map(str::to_owned).and_then(non_empty) {
+        if let Some(name) = element
+            .attr(local_name!("aria-label"))
+            .map(str::to_owned)
+            .and_then(non_empty)
+        {
             return Some(name);
         }
 
@@ -565,10 +616,10 @@ impl BaseDocument {
             if child.is_text_node() {
                 out.push_str(&child.text_content());
             } else if child.element_data().is_some() && !child.is_hidden_from_accessibility_tree() {
-                let inline = child
-                    .display_style()
-                    .is_some_and(|d| d.outside() == style::values::specified::box_::DisplayOutside::Inline
-                        && d.inside() == style::values::specified::box_::DisplayInside::Flow);
+                let inline = child.display_style().is_some_and(|d| {
+                    d.outside() == style::values::specified::box_::DisplayOutside::Inline
+                        && d.inside() == style::values::specified::box_::DisplayInside::Flow
+                });
                 let text = self.text_for_name(child);
                 if inline {
                     out.push_str(&text);
@@ -589,7 +640,9 @@ impl BaseDocument {
         if let Some(id) = element.attr(local_name!("id")).filter(|id| !id.is_empty()) {
             for (_, candidate) in self.nodes.iter() {
                 if let Some(el) = candidate.element_data() {
-                    if el.name.local == local_name!("label") && el.attr(local_name!("for")) == Some(id) {
+                    if el.name.local == local_name!("label")
+                        && el.attr(local_name!("for")) == Some(id)
+                    {
                         parts.push(self.text_for_name(candidate));
                     }
                 }
@@ -598,7 +651,10 @@ impl BaseDocument {
         let mut ancestor = node.parent;
         while let Some(id) = ancestor {
             let candidate = &self.nodes[id];
-            if candidate.element_data().is_some_and(|el| el.name.local == local_name!("label")) {
+            if candidate
+                .element_data()
+                .is_some_and(|el| el.name.local == local_name!("label"))
+            {
                 parts.push(self.text_for_name(candidate));
                 break;
             }
@@ -893,7 +949,9 @@ fn role_from_element_data(element_data: &ElementData) -> Option<Role> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Attribute, BaseDocument, DocumentConfig, EventDriver, NoopEventHandler, QualName, qual_name};
+    use crate::{
+        Attribute, BaseDocument, DocumentConfig, EventDriver, NoopEventHandler, QualName, qual_name,
+    };
     use accesskit::{Action, ActionData, ActionRequest, Node, NodeId as AxId, Toggled, TreeId};
     use blitz_traits::node_id::NodeId;
     use blitz_traits::shell::{ColorScheme, Viewport};
@@ -916,7 +974,11 @@ mod tests {
                     value: v.to_string(),
                 })
                 .collect();
-            let name = QualName::new(None, markup5ever::ns!(html), markup5ever::LocalName::from(*tag));
+            let name = QualName::new(
+                None,
+                markup5ever::ns!(html),
+                markup5ever::LocalName::from(*tag),
+            );
             ids.push(m.create_element(name, attrs));
         }
         m.append_children(body, &ids);
@@ -929,7 +991,11 @@ mod tests {
 
     fn ax_node(doc: &BaseDocument, id: NodeId) -> Node {
         let tree = doc.build_accessibility_tree();
-        tree.nodes.into_iter().find(|(n, _)| n.0 == id.as_u64()).expect("node in the tree").1
+        tree.nodes
+            .into_iter()
+            .find(|(n, _)| n.0 == id.as_u64())
+            .expect("node in the tree")
+            .1
     }
 
     #[test]
@@ -970,7 +1036,12 @@ mod tests {
     }
 
     fn act(doc: &mut BaseDocument, id: NodeId, action: Action, data: Option<ActionData>) -> bool {
-        let request = ActionRequest { action, target_tree: TreeId::ROOT, target_node: AxId(id.as_u64()), data };
+        let request = ActionRequest {
+            action,
+            target_tree: TreeId::ROOT,
+            target_node: AxId(id.as_u64()),
+            data,
+        };
         EventDriver::new(doc, NoopEventHandler).handle_accessibility_action(&request)
     }
 
@@ -982,10 +1053,30 @@ mod tests {
             ("input", &[("type", "checkbox"), ("checked", "")]),
             ("button", &[("role", "switch"), ("aria-checked", "false")]),
             ("button", &[("aria-pressed", "true")]),
-            ("button", &[("aria-expanded", "false"), ("aria-haspopup", "dialog")]),
+            (
+                "button",
+                &[("aria-expanded", "false"), ("aria-haspopup", "dialog")],
+            ),
             ("input", &[("type", "text"), ("value", "abc")]),
-            ("div", &[("role", "slider"), ("tabindex", "0"), ("aria-valuenow", "5"), ("aria-valuemin", "0"), ("aria-valuemax", "10")]),
-            ("input", &[("type", "range"), ("min", "0"), ("max", "4"), ("value", "1")]),
+            (
+                "div",
+                &[
+                    ("role", "slider"),
+                    ("tabindex", "0"),
+                    ("aria-valuenow", "5"),
+                    ("aria-valuemin", "0"),
+                    ("aria-valuemax", "10"),
+                ],
+            ),
+            (
+                "input",
+                &[
+                    ("type", "range"),
+                    ("min", "0"),
+                    ("max", "4"),
+                    ("value", "1"),
+                ],
+            ),
             ("button", &[("disabled", "")]),
         ]);
         let n: Vec<Node> = ids.iter().map(|&id| ax_node(&doc, id)).collect();
@@ -993,28 +1084,70 @@ mod tests {
         assert_eq!(n[0].toggled(), Some(Toggled::True), "native checkbox");
         assert!(n[0].supports_action(Action::Click) && n[0].supports_action(Action::Focus));
         assert_eq!(n[1].toggled(), Some(Toggled::False), "ARIA switch");
-        assert_eq!(n[2].toggled(), Some(Toggled::True), "toggle button (aria-pressed)");
+        assert_eq!(
+            n[2].toggled(),
+            Some(Toggled::True),
+            "toggle button (aria-pressed)"
+        );
         assert_eq!(n[3].is_expanded(), Some(false));
         assert!(n[3].supports_action(Action::Expand) && !n[3].supports_action(Action::Collapse));
         assert_eq!(n[4].value(), Some("abc"));
-        assert!(n[4].supports_action(Action::SetValue), "editable text field");
-        assert_eq!((n[5].numeric_value(), n[5].min_numeric_value(), n[5].max_numeric_value()), (Some(5.0), Some(0.0), Some(10.0)));
-        assert!(n[5].supports_action(Action::Increment) && !n[5].supports_action(Action::SetValue), "ARIA slider: stepped, not set");
+        assert!(
+            n[4].supports_action(Action::SetValue),
+            "editable text field"
+        );
+        assert_eq!(
+            (
+                n[5].numeric_value(),
+                n[5].min_numeric_value(),
+                n[5].max_numeric_value()
+            ),
+            (Some(5.0), Some(0.0), Some(10.0))
+        );
+        assert!(
+            n[5].supports_action(Action::Increment) && !n[5].supports_action(Action::SetValue),
+            "ARIA slider: stepped, not set"
+        );
         assert_eq!(n[6].numeric_value(), Some(1.0), "native range");
         assert!(n[6].supports_action(Action::SetValue));
-        assert!(n[7].is_disabled() && !n[7].supports_action(Action::Click) && !n[7].supports_action(Action::Focus));
+        assert!(
+            n[7].is_disabled()
+                && !n[7].supports_action(Action::Click)
+                && !n[7].supports_action(Action::Focus)
+        );
     }
 
     #[test]
     fn set_value_respects_text_mutation_restrictions() {
         for restriction in ["readonly", "aria-readonly", "disabled"] {
-            let (mut doc, ids) = doc_with(&[
-                ("input", &[("type", "text"), ("value", "original"), (restriction, "true")]),
-            ]);
+            let (mut doc, ids) = doc_with(&[(
+                "input",
+                &[
+                    ("type", "text"),
+                    ("value", "original"),
+                    (restriction, "true"),
+                ],
+            )]);
             assert!(!ax_node(&doc, ids[0]).supports_action(Action::SetValue));
-            assert!(!act(&mut doc, ids[0], Action::SetValue, Some(ActionData::Value("changed".into()))), "{restriction} rejects SetValue");
-            let input = doc.nodes[ids[0]].element_data().unwrap().text_input_data().unwrap();
-            assert_eq!(input.editor.raw_text(), "original", "{restriction} preserves editor value");
+            assert!(
+                !act(
+                    &mut doc,
+                    ids[0],
+                    Action::SetValue,
+                    Some(ActionData::Value("changed".into()))
+                ),
+                "{restriction} rejects SetValue"
+            );
+            let input = doc.nodes[ids[0]]
+                .element_data()
+                .unwrap()
+                .text_input_data()
+                .unwrap();
+            assert_eq!(
+                input.editor.raw_text(),
+                "original",
+                "{restriction} preserves editor value"
+            );
             assert_eq!(ax_node(&doc, ids[0]).value(), Some("original"));
         }
     }
@@ -1022,18 +1155,41 @@ mod tests {
     #[test]
     fn password_set_value_keeps_accessibility_tree_masked() {
         let (mut doc, ids) = doc_with(&[("input", &[("type", "password")])]);
-        assert!(act(&mut doc, ids[0], Action::SetValue, Some(ActionData::Value("hunter2".into()))));
-        let input = doc.nodes[ids[0]].element_data().unwrap().text_input_data().unwrap();
+        assert!(act(
+            &mut doc,
+            ids[0],
+            Action::SetValue,
+            Some(ActionData::Value("hunter2".into()))
+        ));
+        let input = doc.nodes[ids[0]]
+            .element_data()
+            .unwrap()
+            .text_input_data()
+            .unwrap();
         assert_eq!(input.value(), "hunter2");
         assert_eq!(input.editor.raw_text(), "•••••••");
         let tree = doc.build_accessibility_tree();
-        let node = &tree.nodes.iter().find(|(id, _)| id.0 == ids[0].as_u64()).unwrap().1;
+        let node = &tree
+            .nodes
+            .iter()
+            .find(|(id, _)| id.0 == ids[0].as_u64())
+            .unwrap()
+            .1;
         assert_eq!(node.value(), Some("•••••••"));
         assert_eq!(node.children().len(), 1);
-        let run = &tree.nodes.iter().find(|(id, _)| *id == node.children()[0]).unwrap().1;
+        let run = &tree
+            .nodes
+            .iter()
+            .find(|(id, _)| *id == node.children()[0])
+            .unwrap()
+            .1;
         assert_eq!(run.role(), accesskit::Role::TextRun);
         assert_eq!(run.value(), Some("•••••••"));
-        assert!(tree.nodes.iter().all(|(_, node)| !format!("{node:?}").contains("hunter2")));
+        assert!(
+            tree.nodes
+                .iter()
+                .all(|(_, node)| !format!("{node:?}").contains("hunter2"))
+        );
     }
 
     /// Requested actions do what the input they stand for does.
@@ -1042,24 +1198,68 @@ mod tests {
         let (mut doc, ids) = doc_with(&[
             ("input", &[("type", "checkbox")]),
             ("input", &[("type", "text"), ("value", "abc")]),
-            ("input", &[("type", "range"), ("min", "0"), ("max", "4"), ("step", "0.5"), ("value", "1")]),
+            (
+                "input",
+                &[
+                    ("type", "range"),
+                    ("min", "0"),
+                    ("max", "4"),
+                    ("step", "0.5"),
+                    ("value", "1"),
+                ],
+            ),
             ("button", &[]),
             ("button", &[("disabled", "")]),
         ]);
         assert!(act(&mut doc, ids[0], Action::Click, None));
-        assert_eq!(doc.nodes[ids[0]].element_data().unwrap().checkbox_input_checked(), Some(true), "a click checks it");
+        assert_eq!(
+            doc.nodes[ids[0]]
+                .element_data()
+                .unwrap()
+                .checkbox_input_checked(),
+            Some(true),
+            "a click checks it"
+        );
 
-        assert!(act(&mut doc, ids[1], Action::SetValue, Some(ActionData::Value("xyz".into()))));
-        let text = doc.nodes[ids[1]].element_data().unwrap().text_input_data().unwrap().editor.raw_text().to_owned();
+        assert!(act(
+            &mut doc,
+            ids[1],
+            Action::SetValue,
+            Some(ActionData::Value("xyz".into()))
+        ));
+        let text = doc.nodes[ids[1]]
+            .element_data()
+            .unwrap()
+            .text_input_data()
+            .unwrap()
+            .editor
+            .raw_text()
+            .to_owned();
         assert_eq!(text, "xyz");
 
         assert!(act(&mut doc, ids[2], Action::Increment, None));
-        assert_eq!(ax_node(&doc, ids[2]).numeric_value(), Some(1.5), "one step up");
-        assert!(act(&mut doc, ids[2], Action::SetValue, Some(ActionData::NumericValue(9.0))));
-        assert_eq!(ax_node(&doc, ids[2]).numeric_value(), Some(4.0), "clamped to max");
+        assert_eq!(
+            ax_node(&doc, ids[2]).numeric_value(),
+            Some(1.5),
+            "one step up"
+        );
+        assert!(act(
+            &mut doc,
+            ids[2],
+            Action::SetValue,
+            Some(ActionData::NumericValue(9.0))
+        ));
+        assert_eq!(
+            ax_node(&doc, ids[2]).numeric_value(),
+            Some(4.0),
+            "clamped to max"
+        );
 
         assert!(act(&mut doc, ids[3], Action::Focus, None));
         assert_eq!(doc.get_focussed_node_id(), Some(ids[3]));
-        assert!(!act(&mut doc, ids[4], Action::Click, None), "disabled controls take no actions");
+        assert!(
+            !act(&mut doc, ids[4], Action::Click, None),
+            "disabled controls take no actions"
+        );
     }
 }

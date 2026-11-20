@@ -458,7 +458,11 @@ fn collect_layout_children_with_wrap(
         }
         // A drop-down select draws its selected option's label itself; its
         // options aren't laid out.
-        if tag_name == "select" && doc.nodes[container_node_id].element_data().is_some_and(crate::is_drop_down) {
+        if tag_name == "select"
+            && doc.nodes[container_node_id]
+                .element_data()
+                .is_some_and(crate::is_drop_down)
+        {
             doc.refresh_select(container_node_id);
             return;
         }
@@ -882,8 +886,13 @@ fn create_text_editor(doc: &mut BaseDocument, input_element_id: NodeId, is_multi
     let element = &mut node.data.downcast_element_mut().unwrap();
     if !matches!(element.special_data, SpecialElementData::TextInput(_)) {
         let mut text_input_data = TextInputData::new(is_multiline);
-        if element.attr(local_name!("type")).is_some_and(|t| t.eq_ignore_ascii_case("password")) {
-            text_input_data.editor.set_text(&crate::node::masked(&initial_text));
+        if element
+            .attr(local_name!("type"))
+            .is_some_and(|t| t.eq_ignore_ascii_case("password"))
+        {
+            text_input_data
+                .editor
+                .set_text(&crate::node::masked(&initial_text));
             text_input_data.password = Some(initial_text);
         } else {
             text_input_data.editor.set_text(&initial_text);
