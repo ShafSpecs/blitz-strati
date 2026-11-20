@@ -376,10 +376,7 @@ impl<Rend: WindowRenderer> View<Rend> {
                 // `poll` returning true means the document changed. Rebuilding
                 // is a no-op unless an assistive technology is connected.
                 #[cfg(feature = "accessibility")]
-                {
-                    let inner = self.doc.inner();
-                    self.accessibility.update_tree(&inner);
-                }
+                self.build_accessibility_tree();
 
                 self.request_redraw();
                 return true;
@@ -530,8 +527,9 @@ impl<Rend: WindowRenderer> View<Rend> {
 
     #[cfg(feature = "accessibility")]
     pub fn build_accessibility_tree(&mut self) {
-        let inner = self.doc.inner();
-        self.accessibility.update_tree(&inner);
+        let animation_time = self.current_animation_time();
+        let mut inner = self.doc.inner_mut();
+        self.accessibility.update_tree(&mut inner, animation_time);
     }
 
     /// An action requested by an assistive technology: the document carries
