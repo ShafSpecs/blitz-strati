@@ -542,6 +542,10 @@ impl<'doc, Handler: EventHandler> EventDriver<'doc, Handler> {
     }
 }
 
+#[expect(
+    deprecated,
+    reason = "Hyper and Super are legacy keys but platforms still report them as modifiers"
+)]
 fn is_modifier_key(key: &Key) -> bool {
     matches!(
         key,

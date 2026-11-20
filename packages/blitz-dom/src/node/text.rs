@@ -122,7 +122,7 @@ impl EditHistory {
                 self.undo.remove(0);
             }
             self.undo
-                .push((editor.raw_text().to_owned(), editor.raw_selection().clone()));
+                .push((editor.raw_text().to_owned(), *editor.raw_selection()));
         }
         self.redo.clear();
         self.group = (kind != EditKind::Other).then_some(kind);
@@ -466,12 +466,10 @@ impl TextInputData {
                     );
                 }
             };
-            let Some((text, selection)) = from.pop() else {
-                return None;
-            };
+            let (text, selection) = from.pop()?;
             to.push((
                 self.editor.raw_text().to_owned(),
-                self.editor.raw_selection().clone(),
+                *self.editor.raw_selection(),
             ));
             self.history.group = None;
             self.editor.set_text(&text);
@@ -496,6 +494,10 @@ impl TextInputData {
         let action_mod = mods.contains(ACTION_MOD);
 
         // Which kind of edit the key makes (for undo grouping), if any.
+        #[expect(
+            deprecated,
+            reason = "Modifiers::SUPER is legacy but still set by platforms for the Super key"
+        )]
         let kind = match &event.key {
             Key::Character(c) if action_mod && matches!(c.to_lowercase().as_str(), "x" | "v") => {
                 Some(EditKind::Other)

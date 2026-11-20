@@ -346,6 +346,10 @@ pub enum SpecialElementType {
 
 /// Heterogeneous data that depends on the element's type.
 #[derive(Default)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "boxing TextInputData would change the public variant type"
+)]
 pub enum SpecialElementData {
     /// A sub-document such an \<iframe\> or \<web-view\> element
     SubDocument(Box<dyn Document>),
