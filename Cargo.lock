@@ -293,7 +293,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 [[package]]
 name = "anyrender"
 version = "0.15.0"
-source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=b7779781d4fa4712058515b550bda6350ad8d982#b7779781d4fa4712058515b550bda6350ad8d982"
+source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=5290a1fcc722666000647a4a849f738ede40b490#5290a1fcc722666000647a4a849f738ede40b490"
 dependencies = [
  "image_filters_types",
  "kurbo",
@@ -306,7 +306,7 @@ dependencies = [
 [[package]]
 name = "anyrender_serialize"
 version = "0.9.0"
-source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=b7779781d4fa4712058515b550bda6350ad8d982#b7779781d4fa4712058515b550bda6350ad8d982"
+source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=5290a1fcc722666000647a4a849f738ede40b490#5290a1fcc722666000647a4a849f738ede40b490"
 dependencies = [
  "anyrender",
  "image",
@@ -324,7 +324,7 @@ dependencies = [
 [[package]]
 name = "anyrender_skia"
 version = "0.13.0"
-source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=b7779781d4fa4712058515b550bda6350ad8d982#b7779781d4fa4712058515b550bda6350ad8d982"
+source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=5290a1fcc722666000647a4a849f738ede40b490#5290a1fcc722666000647a4a849f738ede40b490"
 dependencies = [
  "anyrender",
  "ash",
@@ -356,7 +356,7 @@ dependencies = [
 [[package]]
 name = "anyrender_svg"
 version = "0.16.0"
-source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=b7779781d4fa4712058515b550bda6350ad8d982#b7779781d4fa4712058515b550bda6350ad8d982"
+source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=5290a1fcc722666000647a4a849f738ede40b490#5290a1fcc722666000647a4a849f738ede40b490"
 dependencies = [
  "anyrender",
  "image",
@@ -368,7 +368,7 @@ dependencies = [
 [[package]]
 name = "anyrender_vello"
 version = "0.16.0"
-source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=b7779781d4fa4712058515b550bda6350ad8d982#b7779781d4fa4712058515b550bda6350ad8d982"
+source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=5290a1fcc722666000647a4a849f738ede40b490#5290a1fcc722666000647a4a849f738ede40b490"
 dependencies = [
  "anyrender",
  "debug_timer 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -386,7 +386,7 @@ dependencies = [
 [[package]]
 name = "anyrender_vello_cpu"
 version = "0.19.0"
-source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=b7779781d4fa4712058515b550bda6350ad8d982#b7779781d4fa4712058515b550bda6350ad8d982"
+source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=5290a1fcc722666000647a4a849f738ede40b490#5290a1fcc722666000647a4a849f738ede40b490"
 dependencies = [
  "anyrender",
  "bytemuck",
@@ -404,7 +404,7 @@ dependencies = [
 [[package]]
 name = "anyrender_vello_gpu"
 version = "0.12.0"
-source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=b7779781d4fa4712058515b550bda6350ad8d982#b7779781d4fa4712058515b550bda6350ad8d982"
+source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=5290a1fcc722666000647a4a849f738ede40b490#5290a1fcc722666000647a4a849f738ede40b490"
 dependencies = [
  "anyrender",
  "debug_timer 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3636,7 +3636,7 @@ dependencies = [
 [[package]]
 name = "glifo"
 version = "0.5.0"
-source = "git+https://github.com/ShafSpecs/vello-strati?rev=4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4#4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4"
+source = "git+https://github.com/ShafSpecs/vello-strati?rev=f28f6dec63dc46081fda7387f9adbab1b749b09a#f28f6dec63dc46081fda7387f9adbab1b749b09a"
 dependencies = [
  "bytemuck",
  "foldhash 0.2.0",
@@ -4359,7 +4359,7 @@ dependencies = [
 [[package]]
 name = "image_filters_types"
 version = "0.1.0"
-source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=b7779781d4fa4712058515b550bda6350ad8d982#b7779781d4fa4712058515b550bda6350ad8d982"
+source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=5290a1fcc722666000647a4a849f738ede40b490#5290a1fcc722666000647a4a849f738ede40b490"
 dependencies = [
  "kurbo",
  "peniko",
@@ -6290,7 +6290,7 @@ dependencies = [
 [[package]]
 name = "pixels_window_renderer"
 version = "0.10.0"
-source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=b7779781d4fa4712058515b550bda6350ad8d982#b7779781d4fa4712058515b550bda6350ad8d982"
+source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=5290a1fcc722666000647a4a849f738ede40b490#5290a1fcc722666000647a4a849f738ede40b490"
 dependencies = [
  "anyrender",
  "debug_timer 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -7667,7 +7667,7 @@ dependencies = [
 [[package]]
 name = "softbuffer_window_renderer"
 version = "0.10.0"
-source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=b7779781d4fa4712058515b550bda6350ad8d982#b7779781d4fa4712058515b550bda6350ad8d982"
+source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=5290a1fcc722666000647a4a849f738ede40b490#5290a1fcc722666000647a4a849f738ede40b490"
 dependencies = [
  "anyrender",
  "debug_timer 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -8912,7 +8912,7 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 [[package]]
 name = "vello"
 version = "0.12.0"
-source = "git+https://github.com/ShafSpecs/vello-strati?rev=4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4#4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4"
+source = "git+https://github.com/ShafSpecs/vello-strati?rev=f28f6dec63dc46081fda7387f9adbab1b749b09a#f28f6dec63dc46081fda7387f9adbab1b749b09a"
 dependencies = [
  "bytemuck",
  "futures-intrusive",
@@ -8930,7 +8930,7 @@ dependencies = [
 [[package]]
 name = "vello_common"
 version = "0.4.0"
-source = "git+https://github.com/ShafSpecs/vello-strati?rev=4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4#4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4"
+source = "git+https://github.com/ShafSpecs/vello-strati?rev=f28f6dec63dc46081fda7387f9adbab1b749b09a#f28f6dec63dc46081fda7387f9adbab1b749b09a"
 dependencies = [
  "bytemuck",
  "fearless_simd",
@@ -8946,7 +8946,7 @@ dependencies = [
 [[package]]
 name = "vello_cpu"
 version = "0.4.0"
-source = "git+https://github.com/ShafSpecs/vello-strati?rev=4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4#4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4"
+source = "git+https://github.com/ShafSpecs/vello-strati?rev=f28f6dec63dc46081fda7387f9adbab1b749b09a#f28f6dec63dc46081fda7387f9adbab1b749b09a"
 dependencies = [
  "bytemuck",
  "crossbeam-channel",
@@ -8964,7 +8964,7 @@ dependencies = [
 [[package]]
 name = "vello_encoding"
 version = "0.12.0"
-source = "git+https://github.com/ShafSpecs/vello-strati?rev=4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4#4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4"
+source = "git+https://github.com/ShafSpecs/vello-strati?rev=f28f6dec63dc46081fda7387f9adbab1b749b09a#f28f6dec63dc46081fda7387f9adbab1b749b09a"
 dependencies = [
  "bytemuck",
  "guillotiere",
@@ -8976,7 +8976,7 @@ dependencies = [
 [[package]]
 name = "vello_gpu"
 version = "0.4.0"
-source = "git+https://github.com/ShafSpecs/vello-strati?rev=4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4#4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4"
+source = "git+https://github.com/ShafSpecs/vello-strati?rev=f28f6dec63dc46081fda7387f9adbab1b749b09a#f28f6dec63dc46081fda7387f9adbab1b749b09a"
 dependencies = [
  "bytemuck",
  "glifo",
@@ -8994,7 +8994,7 @@ dependencies = [
 [[package]]
 name = "vello_gpu_shaders"
 version = "0.4.0"
-source = "git+https://github.com/ShafSpecs/vello-strati?rev=4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4#4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4"
+source = "git+https://github.com/ShafSpecs/vello-strati?rev=f28f6dec63dc46081fda7387f9adbab1b749b09a#f28f6dec63dc46081fda7387f9adbab1b749b09a"
 dependencies = [
  "naga 30.0.2",
  "wesl",
@@ -9006,7 +9006,7 @@ dependencies = [
 [[package]]
 name = "vello_shaders"
 version = "0.12.0"
-source = "git+https://github.com/ShafSpecs/vello-strati?rev=4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4#4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4"
+source = "git+https://github.com/ShafSpecs/vello-strati?rev=f28f6dec63dc46081fda7387f9adbab1b749b09a#f28f6dec63dc46081fda7387f9adbab1b749b09a"
 dependencies = [
  "bytemuck",
  "log",
@@ -9752,7 +9752,7 @@ dependencies = [
 [[package]]
 name = "wgpu_context"
 version = "0.11.0"
-source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=b7779781d4fa4712058515b550bda6350ad8d982#b7779781d4fa4712058515b550bda6350ad8d982"
+source = "git+https://github.com/ShafSpecs/anyrender-strati?rev=5290a1fcc722666000647a4a849f738ede40b490#5290a1fcc722666000647a4a849f738ede40b490"
 dependencies = [
  "futures-intrusive",
  "objc2-core-graphics",

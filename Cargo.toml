@@ -297,14 +297,14 @@ wgpu_context = { workspace = true }
 rustc-hash = { workspace = true }
 
 [patch.crates-io]
-vello = { git = "https://github.com/ShafSpecs/vello-strati", rev = "4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4" }
-vello_encoding = { git = "https://github.com/ShafSpecs/vello-strati", rev = "4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4" }
-vello_shaders = { git = "https://github.com/ShafSpecs/vello-strati", rev = "4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4" }
-vello_common = { git = "https://github.com/ShafSpecs/vello-strati", rev = "4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4" }
-vello_cpu = { git = "https://github.com/ShafSpecs/vello-strati", rev = "4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4" }
-vello_gpu = { git = "https://github.com/ShafSpecs/vello-strati", rev = "4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4" }
-vello_gpu_shaders = { git = "https://github.com/ShafSpecs/vello-strati", rev = "4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4" }
-glifo = { git = "https://github.com/ShafSpecs/vello-strati", rev = "4440ae64caa3a8d99e937cdbbdab8a4f71bf8fa4" }
+vello = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+vello_encoding = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+vello_shaders = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+vello_common = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+vello_cpu = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+vello_gpu = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+vello_gpu_shaders = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
+glifo = { git = "https://github.com/ShafSpecs/vello-strati", rev = "f28f6dec63dc46081fda7387f9adbab1b749b09a" }
 wgpu = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
 wgpu-core = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
 wgpu-hal = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
@@ -315,17 +315,17 @@ wgpu-core-deps-apple = { git = "https://github.com/ShafSpecs/wgpu-strati", rev =
 wgpu-core-deps-emscripten = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
 naga = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
 naga-types = { git = "https://github.com/ShafSpecs/wgpu-strati", rev = "fdd02b66e397cfa1b8807798d68e3da847cb74c8" }
-anyrender = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "b7779781d4fa4712058515b550bda6350ad8d982" }
-anyrender_serialize = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "b7779781d4fa4712058515b550bda6350ad8d982" }
-anyrender_skia = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "b7779781d4fa4712058515b550bda6350ad8d982" }
-anyrender_vello = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "b7779781d4fa4712058515b550bda6350ad8d982" }
-anyrender_vello_cpu = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "b7779781d4fa4712058515b550bda6350ad8d982" }
-anyrender_vello_gpu = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "b7779781d4fa4712058515b550bda6350ad8d982" }
-anyrender_svg = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "b7779781d4fa4712058515b550bda6350ad8d982" }
-wgpu_context = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "b7779781d4fa4712058515b550bda6350ad8d982" }
-image_filters_types = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "b7779781d4fa4712058515b550bda6350ad8d982" }
-pixels_window_renderer = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "b7779781d4fa4712058515b550bda6350ad8d982" }
-softbuffer_window_renderer = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "b7779781d4fa4712058515b550bda6350ad8d982" }
+anyrender = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+anyrender_serialize = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+anyrender_skia = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+anyrender_vello = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+anyrender_vello_cpu = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+anyrender_vello_gpu = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+anyrender_svg = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+wgpu_context = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+image_filters_types = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+pixels_window_renderer = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
+softbuffer_window_renderer = { git = "https://github.com/ShafSpecs/anyrender-strati", rev = "5290a1fcc722666000647a4a849f738ede40b490" }
 accesskit_unix = { path = "vendor/accesskit_unix" }
 accesskit_atspi_common = { path = "vendor/accesskit_atspi_common" }
 
