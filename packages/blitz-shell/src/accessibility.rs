@@ -49,10 +49,13 @@ impl AccessibilityState {
             ),
         }
     }
-    pub fn update_tree(&mut self, doc: &BaseDocument) {
-        let _ = doc;
-        self.adapter
-            .update_if_active(|| doc.build_accessibility_tree());
+    pub fn update_tree(&mut self, doc: &mut BaseDocument, animation_time: f64) {
+        self.adapter.update_if_active(|| {
+            // The platform derives interfaces and hit targets from node bounds.
+            // Resolve pending DOM changes before clients can cache this tree.
+            doc.resolve(animation_time);
+            doc.build_accessibility_tree()
+        });
     }
 
     #[cfg(target_os = "linux")]
